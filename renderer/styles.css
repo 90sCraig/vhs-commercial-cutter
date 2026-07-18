@@ -150,11 +150,11 @@ body::after {
 
 /* Minimap overview */
 .minimap {
-  position: relative; height: 24px; margin-top: 6px; display: flex;
+  position: relative; height: 24px; margin-top: 6px;
   background: var(--bg-3); border: 1px solid var(--line); border-radius: 6px;
   overflow: hidden; cursor: pointer;
 }
-.minimap .mseg { height: 100%; flex-basis: 0; }
+.minimap .mseg { position: absolute; top: 0; bottom: 0; }
 .minimap .mseg.keep { background: rgba(61,220,151,0.45); }
 .minimap .mseg.cut { background: rgba(255,107,107,0.4); }
 .minimap-window {
@@ -171,16 +171,13 @@ body::after {
 .timeline {
   position: relative; height: 54px; border-radius: 8px;
   background: var(--bg-3); border: 1px solid var(--line);
-  overflow: hidden; display: flex;
+  overflow: hidden;
 }
 .seg {
-  position: relative; height: 100%;
-  border-right: 1px solid rgba(0,0,0,0.35);
-  cursor: pointer; transition: filter .12s;
-  display: flex; align-items: flex-end;
+  position: absolute; top: 0; bottom: 0;
+  cursor: pointer; transition: filter .12s; box-sizing: border-box;
 }
-.seg:last-child { border-right: none; }
-.seg:hover { filter: brightness(1.2); }
+.seg:hover { filter: brightness(1.2); z-index: 2; }
 .seg.keep { background: linear-gradient(180deg, rgba(61,220,151,0.30), rgba(61,220,151,0.15)); }
 .seg.cut  { background: linear-gradient(180deg, rgba(255,107,107,0.30), rgba(255,107,107,0.14)); }
 .seg .len-bar { width: 100%; }

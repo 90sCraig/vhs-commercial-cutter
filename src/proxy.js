@@ -21,11 +21,14 @@ function cacheDir() {
   return dir;
 }
 
+// Bump when proxy generation changes so stale proxies are rebuilt, not reused.
+const PROXY_VERSION = 'v2-timeline';
+
 function proxyPathFor(src) {
   const st = fs.statSync(src);
   const key = crypto
     .createHash('sha1')
-    .update(`${src}|${st.size}|${Math.round(st.mtimeMs)}`)
+    .update(`${src}|${st.size}|${Math.round(st.mtimeMs)}|${PROXY_VERSION}`)
     .digest('hex')
     .slice(0, 16);
   return path.join(cacheDir(), `${key}.mp4`);
@@ -86,9 +89,12 @@ async function ensureProxy(src, hooks = {}, opts = {}) {
     args.push(
       '-i', src,
       '-vf', 'scale=-2:480',                        // 480p, keep aspect
-      '-r', '30',                                   // 60→30 fps: smaller, lighter
+      // Preserve the source frame timestamps. Forcing CFR (e.g. -r 30) resamples
+      // the timeline, which drifts out of sync with the original on VHS captures
+      // that have irregular timing — so a clip would seek to the wrong content.
+      '-fps_mode', 'passthrough',
       ...videoCodecArgs(encoder, 28),
-      ...proxyGopArgs(encoder),                     // keyframe ~every 1s → snappy seek
+      ...proxyGopArgs(encoder),                     // frequent keyframes → snappy seek
       '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '96k', '-ac', '2',
       '-movflags', '+faststart',

@@ -214,8 +214,10 @@ function renderTimeline() {
   for (const seg of state.segments) {
     const el = document.createElement('div');
     el.className = 'seg ' + segClass(seg);
-    el.style.flexGrow = String(Math.max(0.0001, seg.duration));
-    el.style.flexBasis = '0';
+    // Position by absolute time so segments line up with the playhead, scale,
+    // and boundary handles. Gaps (black transitions) show as empty timeline.
+    el.style.left = (seg.start / dur * 100) + '%';
+    el.style.width = (Math.max(0, seg.duration) / dur * 100) + '%';
     if (state.selected === seg.id) el.classList.add('selected');
     el.title = `${fmtTime(seg.start)}–${fmtTime(seg.end)} (${fmtDur(seg.duration)}) · ${seg.keep ? 'save' : 'skip'}`;
     el.addEventListener('click', () => selectSegment(seg.id, { seek: true }));
@@ -281,10 +283,12 @@ function renderMinimap() {
   const mm = $('minimap');
   const win = $('minimapWindow');
   mm.querySelectorAll('.mseg').forEach((n) => n.remove());
+  const dur = state.duration || 1;
   for (const seg of state.segments) {
     const el = document.createElement('div');
     el.className = 'mseg ' + segClass(seg);
-    el.style.flexGrow = String(Math.max(0.0001, seg.duration));
+    el.style.left = (seg.start / dur * 100) + '%';
+    el.style.width = (Math.max(0, seg.duration) / dur * 100) + '%';
     mm.insertBefore(el, win);
   }
   updateMinimapWindow();
