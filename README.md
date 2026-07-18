@@ -1,110 +1,103 @@
-# VHS Editor (Windows)
+<div align="center">
 
-A lightweight Windows companion for digitizing VHS tapes — a clone of the macOS
-app *Video Barbershop*, focused on its killer feature: **automatic commercial
-detection and removal**, plus a simple VHS color fix and flexible export.
+<img src="docs/icon.png" width="128" alt="90s Craig Edit Booth" />
 
-Built with Electron + FFmpeg.
+# 90s Craig Edit Booth
 
-## What it does (v1)
+**Find and cut the commercials out of digitized VHS tapes — then keep the show, or turn the ads into vertical clips for TikTok & Reels.**
 
-1. **Import** a long capture (MP4 / MKV / AVI / MOV / TS…).
-2. **Detect commercials** automatically. It runs one FFmpeg pass looking for two
-   signals that mark program↔ad boundaries on broadcast recordings:
-   - **fade-to-black** (`blackdetect`), and
-   - **audio drop** (`silencedetect`).
-   A black interval that *coincides* with silence is a high-confidence boundary.
-   The recording is split into segments; short segments between boundaries are
-   auto-guessed as commercials (cut), long segments as program (keep).
-3. **Review** on a color-coded timeline and segment list. Click a segment's tag
-   (or double-click it on the timeline) to flip keep↔cut. Click a segment to
-   jump the preview player to it. "Keep all" / "Invert" for bulk edits.
-4. **Color fix** (optional): brightness / contrast / saturation to undo the
-   dark, washed-out CRT look.
-5. **Export**: one merged clean file, or one clip per kept segment. Your choice
-   per job. Cut segments (and sub-threshold micro-gaps) are dropped.
+![Windows](https://img.shields.io/badge/Windows-x64-2b3136?logo=windows&logoColor=5fce8c)
+![Built with Electron](https://img.shields.io/badge/Electron-33-2b3136?logo=electron&logoColor=5fce8c)
+![FFmpeg](https://img.shields.io/badge/FFmpeg-bundled-2b3136?logo=ffmpeg&logoColor=5fce8c)
+![License](https://img.shields.io/badge/license-MIT-2b3136)
 
-### Detection tuning
+<img src="docs/screenshots/hero.png" alt="90s Craig Edit Booth — detecting commercials on a tape" width="880" />
 
-If detection is too eager or too shy on your tapes, adjust the sliders:
-- **Black sensitivity** — how dark a frame must be to count (higher = looser).
-- **Silence threshold** — how quiet audio must fall to count as a drop.
-- **Min commercial gap** — ignores boundary gaps shorter than this (noise).
-- **Max commercial length** — segments shorter than this are guessed as ads.
+</div>
 
-## Running it (development)
+---
+
+## What it does
+
+Digitizing a shelf of old VHS tapes leaves you with long captures full of commercials. **90s Craig Edit Booth** scans a capture for the fade-to-black + audio-silence marks that sit between the show and the ads, splits it into clips, and lets you:
+
+- 📺 **Make a clean tape** — the program with commercials removed, as one file.
+- 🎬 **Make social clips** — the *commercials themselves*, reframed to vertical 9:16 with a blurred background, ready to post.
+
+It's a fast, focused companion — not a full NLE. Point it at a tape, review, export.
+
+## Features
+
+- **Automatic commercial detection** — black-frame + audio-silence correlation, with tunable sensitivity.
+- **Editable timeline** — zoom, minimap overview, drag boundaries, split / merge, set in/out, frame-step keyboard nav.
+- **Fast preview** — builds a small local proxy so scrubbing huge MKV/network captures stays smooth (with an LRU cache you control).
+- **Restore** — denoise/sharpen by tape speed, brightness/contrast/saturation/gamma, RGB balance, audio-drift fix.
+- **Flexible export** — source or vertical/portrait/square reframing, quality/resolution/frame-rate presets, custom filenames, one-click **Clean tape** / **Social clips** presets.
+- **GPU acceleration** — CPU (x264) or NVIDIA / Intel / AMD hardware encode + decode for export, previews, and detection, with automatic CPU fallback.
+- **Self-contained** — FFmpeg is bundled; nothing else to install.
+- **Auto-update** — notify-first: you decide when to download and install.
+
+## Download & install
+
+Grab the latest **[Release](https://github.com/90sCraig/vhs-commercial-cutter/releases/latest)**:
+
+- **`…-Setup-<ver>.exe`** — installer (Start-menu shortcut + uninstaller)
+- **`…-Portable-<ver>.exe`** — single exe, no install
+
+> The app is unsigned, so Windows SmartScreen shows an "unknown publisher" prompt the first time. Click **More info → Run anyway**. Windows x64.
+
+## Quick start
+
+1. **Open a capture** — click *Open capture…* or drag a video onto the player. MP4 / MKV / AVI / MOV and more.
+2. **Detect commercials** — click *Detect commercials*. Clips appear on the timeline, colored **green = keep** / **red = cut**.
+3. **Review & fix** — click a clip to play it; flip keep/cut with a click or `K`; drag the yellow boundaries, or `S` split / `M` merge / `I`·`O` set in-out.
+4. **Pick a preset** — **📺 Clean tape** or **🎬 Social clips**.
+5. **Export** — pick a folder and go. Your full-quality original is always the source; the preview is just for speed.
+
+<div align="center">
+<img src="docs/screenshots/guide.png" alt="In-app guide" width="440" />
+&nbsp;&nbsp;
+<img src="docs/screenshots/settings.png" alt="Settings — proxy cache, encoder, updates" width="440" />
+</div>
+
+<sub>A built-in **Guide** (left) walks through everything, and **Settings** (right) controls the preview-proxy cache, the CPU/GPU encoder, and updates.</sub>
+
+## Made by 90s Craig
+
+<!-- LINKS: replace the # placeholders with your real channel URLs -->
+- ▶️ **YouTube** — [90s Craig](#)
+- 🎵 **TikTok** — [@90scraig](#)
+- 📸 **Instagram** — [@90scraig](#)
+- 🦋 **Bluesky** — [90scraig](#)
+- 💬 **Discord** — [join](#)
+
+## Building from source
+
+FFmpeg/FFprobe are fetched during `npm install` (via `ffmpeg-static` / `ffprobe-static`) and bundled, so end users need nothing installed.
 
 ```powershell
-npm install       # one time
-npm start
+npm install       # also pulls the bundled FFmpeg binaries
+npm start          # run in dev
+npm run dist       # build installer + portable into dist\
+npm run pack       # unpacked app only (dist\win-unpacked)
 ```
 
-## Building an installer (distribution)
+## Releasing an update
 
-FFmpeg/FFprobe are bundled automatically via `ffmpeg-static` / `ffprobe-static`
-(fetched during `npm install`) and packed as unpacked resources, so end users
-need nothing installed.
+The installed app checks GitHub releases on launch and notifies the user (nothing installs without consent). To publish a new version:
 
 ```powershell
-npm install       # pulls the bundled FFmpeg binaries too
-npm run dist       # → dist\90s-Craig-Edit-Booth-Setup-<ver>.exe    (installer)
-                   #   dist\90s-Craig-Edit-Booth-Portable-<ver>.exe (portable)
-npm run pack       # unpacked app only (dist\win-unpacked), for quick testing
-```
-
-## Releasing an update (auto-update)
-
-The installed app checks GitHub releases on launch and notifies the user
-(nothing installs without their consent). To publish a new version:
-
-```powershell
-npm run release -- patch   # bump 0.1.0 → 0.1.1, build, and create the release
+npm run release -- patch   # bump 0.1.0 → 0.1.1, build, create the release
 npm run release -- minor   # 0.1.0 → 0.2.0
 npm run release            # release the current version as-is
 ```
 
-This builds and creates a GitHub release (installer + portable + `latest.yml`)
-via the `gh` CLI, which must be installed and authenticated (`gh auth login`).
+Requires the GitHub CLI (`gh auth login`). **Auto-update only reaches users when the repository is public** — a private repo's release assets need authentication to download.
 
-**Auto-update only reaches users when the repo is public** — a private repo's
-release assets require authentication to download. Flip the repo to public when
-you're ready; no code changes needed.
+## Tech
 
-The app is **unsigned**, so Windows SmartScreen shows an "unknown publisher"
-warning (More info → Run anyway). Removing it requires a code-signing
-certificate (e.g. Azure Trusted Signing).
+Electron · FFmpeg (bundled) · electron-builder. No native modules — the app drives FFmpeg as a subprocess.
 
-Notes:
-- Output is unsigned, so Windows SmartScreen shows an "unknown publisher"
-  warning (users click **More info → Run anyway**). Add a code-signing
-  certificate in `build.win.certificateFile`/`CSC_LINK` to remove it.
-- Bump `version` in `package.json` before each release.
-- See `THIRD-PARTY-NOTICES.md` for the bundled FFmpeg license.
-- Test the installer on a clean PC (no FFmpeg, no dev tools) to confirm the
-  bundled binaries resolve.
+## License
 
-## FFmpeg
-
-The app looks for `ffmpeg.exe` / `ffprobe.exe` in this order:
-
-1. `FFMPEG_PATH` / `FFPROBE_PATH` environment variables
-2. `vendor/ffmpeg/` inside this project (self-contained)
-3. The copy bundled with Nickvision Parabolic (auto-detected on this machine)
-4. Whatever is on your `PATH`
-
-To make it fully self-contained, run `npm run setup-ffmpeg` (copies a local
-build into `vendor/ffmpeg/`), or drop your own `ffmpeg.exe` + `ffprobe.exe`
-there. Windows builds: https://www.gyan.dev/ffmpeg/builds/
-
-## Notes & limits (v1)
-
-- Export **re-encodes** kept segments (libx264/AAC, CRF 18) so cuts are
-  frame-accurate on VHS captures that lack clean keyframes.
-- Preview uses the built-in HTML5 player. H.264 MP4 previews everywhere; some
-  MKV codecs may not preview even though detection/export still work.
-- This is a personal-use build (no installer/signing yet).
-
-## Roadmap (not in v1)
-
-Bulk/batch queue across many tapes · aspect-ratio & resolution presets with
-letterboxing · text overlays / watermarks / keyframe FX · metadata reports.
+[MIT](LICENSE). Bundles FFmpeg (LGPL/GPL, used as a separate process) — see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
