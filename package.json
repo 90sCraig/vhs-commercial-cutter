@@ -10,7 +10,8 @@
     "start": "electron .",
     "setup-ffmpeg": "node scripts/setup-ffmpeg.js",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "release": "node scripts/release.js"
   },
   "devDependencies": {
     "electron": "^33.0.0",

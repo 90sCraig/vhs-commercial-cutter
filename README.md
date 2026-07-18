@@ -47,10 +47,32 @@ need nothing installed.
 
 ```powershell
 npm install       # pulls the bundled FFmpeg binaries too
-npm run dist       # → dist\90s Craig Edit Booth Setup <ver>.exe (installer)
-                   #   dist\90s Craig Edit Booth <ver>.exe        (portable)
+npm run dist       # → dist\90s-Craig-Edit-Booth-Setup-<ver>.exe    (installer)
+                   #   dist\90s-Craig-Edit-Booth-Portable-<ver>.exe (portable)
 npm run pack       # unpacked app only (dist\win-unpacked), for quick testing
 ```
+
+## Releasing an update (auto-update)
+
+The installed app checks GitHub releases on launch and notifies the user
+(nothing installs without their consent). To publish a new version:
+
+```powershell
+npm run release -- patch   # bump 0.1.0 → 0.1.1, build, and create the release
+npm run release -- minor   # 0.1.0 → 0.2.0
+npm run release            # release the current version as-is
+```
+
+This builds and creates a GitHub release (installer + portable + `latest.yml`)
+via the `gh` CLI, which must be installed and authenticated (`gh auth login`).
+
+**Auto-update only reaches users when the repo is public** — a private repo's
+release assets require authentication to download. Flip the repo to public when
+you're ready; no code changes needed.
+
+The app is **unsigned**, so Windows SmartScreen shows an "unknown publisher"
+warning (More info → Run anyway). Removing it requires a code-signing
+certificate (e.g. Azure Trusted Signing).
 
 Notes:
 - Output is unsigned, so Windows SmartScreen shows an "unknown publisher"
