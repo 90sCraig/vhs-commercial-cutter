@@ -4,7 +4,7 @@
 
 # 90s Craig Edit Booth
 
-**Pull the vintage commercials off your digitized VHS tapes and turn them into vertical clips for TikTok and Reels — or keep the show as one clean file.**
+**Cut the commercials out of your digitized VHS tapes. Keep the show as one clean file, or turn the ads into vertical clips for TikTok and Reels.**
 
 ![Windows](https://img.shields.io/badge/Windows-x64-2b3136?logo=windows&logoColor=5fce8c)
 ![Built with Electron](https://img.shields.io/badge/Electron-33-2b3136?logo=electron&logoColor=5fce8c)
@@ -23,18 +23,18 @@ You digitize a stack of old tapes and end up with hours of footage that's half s
 
 It looks for the fade-to-black and the dead-air that sit between the program and the ads, cuts the tape into clips at those spots, and then hands you the wheel:
 
-- 🎬 **Keep the commercials.** Those old ads are half the reason to save a tape. It marks them to save on its own — reframe them to vertical 9:16 with a blurred background and post them.
-- 📺 **Keep the show.** The other way around: export the program with the commercials pulled out, as one file.
+- 📺 **Keep the show.** Export the program with the commercials pulled out, as one file.
+- 🎬 **Keep the commercials.** Those old ads are half the reason to save a tape. Reframe them to vertical 9:16 with a blurred background and post them.
 
 It's not a full video editor and doesn't pretend to be. Load a tape, check the cuts, export.
 
 ## Features
 
-- **Finds the commercials on its own.** It lines up black frames with silent audio to spot the breaks and marks the ads to save. If it's guessing wrong, turn the sensitivity up or down — or test it on a short sample first instead of scanning the whole tape.
+- **Finds the commercials on its own.** It lines up black frames with silent audio to spot the breaks. If it's guessing wrong, turn the sensitivity up or down.
 - **A timeline you can actually work in.** Zoom in, drag the cut points, split and merge clips, set in and out, step through frame by frame from the keyboard. There's a minimap for the wide view.
 - **Scrubs fast on huge files.** It builds a small proxy in the background so a giant MKV or a capture sitting on your network still plays smooth. The proxy cache is yours to control.
 - **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation, and gamma, fix the RGB balance, and pull the audio back in sync when it drifts.
-- **Exports how you want.** Keep the source shape or reframe to vertical, portrait, or square. Pick your quality, resolution, and frame rate, name the files yourself, or just hit the **Commercial clips** or **Keep the show** preset and go.
+- **Exports how you want.** Keep the source shape or reframe to vertical, portrait, or square. Pick your quality, resolution, and frame rate, name the files yourself, or just hit the **Clean tape** or **Social clips** preset and go.
 - **Uses your GPU if you've got one.** NVIDIA, Intel, or AMD for encode and decode, on export, previews, and detection. Falls back to the CPU (x264) on its own when the hardware path isn't there.
 - **Nothing else to install.** FFmpeg ships inside the app.
 - **Updates when you say so.** It tells you a new version is out and then waits. Nothing installs behind your back.
@@ -51,9 +51,9 @@ Grab the latest [release](https://github.com/90sCraig/vhs-commercial-cutter/rele
 ## Quick start
 
 1. **Open a tape.** Click *Open capture…* or drag a video onto the player. MP4, MKV, AVI, MOV, and most other things.
-2. **Detect the commercials.** Hit *Detect commercials*. Clips show up on the timeline, the ads **green to save**, the show **red to skip**.
-3. **Check its work.** Click a clip to play it. Flip save/skip with a click or `K`. Drag the yellow edges, or `S` to split, `M` to merge, `I`/`O` to set in and out. Not catching a break? Use **Test here** on a short sample to tune the sliders fast.
-4. **Pick what you're making.** **🎬 Commercial clips** or **📺 Keep the show**.
+2. **Detect the commercials.** Hit *Detect commercials*. Clips show up on the timeline, **green to keep**, **red to cut**.
+3. **Check its work.** Click a clip to play it. Flip keep/cut with a click or `K`. Drag the yellow edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
+4. **Pick what you're making.** **📺 Clean tape** or **🎬 Social clips**.
 5. **Export.** Choose a folder and go. It always cuts from your original file at full quality; the proxy is only there to keep things quick while you work.
 
 <div align="center">
@@ -73,7 +73,6 @@ I'm a VHS archivist in Columbus, Ohio. I find old tapes, digitize them live on s
 - 📸 **Instagram** — [@90s_craig](https://www.instagram.com/90s_craig/)
 - 🟣 **Twitch** — [90s_craig](https://www.twitch.tv/90s_craig)
 - 🦋 **Bluesky** — [@90scraig.com](https://bsky.app/profile/90scraig.com)
-- 💬 **Discord** — [join the server](https://discord.gg/p4mYcZheg2)
 
 ## Building from source
 
