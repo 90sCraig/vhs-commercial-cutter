@@ -6,6 +6,7 @@ const { exportVideo } = require('./src/export');
 const { ensureProxy, cacheSize, clearCache } = require('./src/proxy');
 const settings = require('./src/settings');
 const { decodeAccel } = require('./src/encoders');
+const updater = require('./src/updater');
 const { spawn } = require('child_process');
 
 let win;
@@ -27,6 +28,7 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  win.webContents.once('did-finish-load', () => updater.initUpdater(win));
 }
 
 app.whenReady().then(() => {
@@ -43,6 +45,7 @@ app.on('window-all-closed', () => {
 // --- IPC ---------------------------------------------------------------
 
 ipcMain.handle('ffmpeg:paths', () => ({ ffmpeg: FFMPEG, ffprobe: FFPROBE }));
+ipcMain.handle('app:version', () => app.getVersion());
 
 ipcMain.handle('dialog:openVideo', async () => {
   const res = await dialog.showOpenDialog(win, {
@@ -121,3 +124,8 @@ ipcMain.handle('encoder:test', (_e, encoder) => new Promise((resolve) => {
 ipcMain.handle('shell:showItem', async (_e, p) => {
   shell.showItemInFolder(p);
 });
+
+// --- updates ---
+ipcMain.handle('update:check', () => updater.check());
+ipcMain.handle('update:download', () => updater.download());
+ipcMain.handle('update:install', () => updater.install());

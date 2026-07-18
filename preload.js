@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('api', {
     try { return webUtils.getPathForFile(file); } catch (_) { return file.path || null; }
   },
   ffmpegPaths: () => ipcRenderer.invoke('ffmpeg:paths'),
+  appVersion: () => ipcRenderer.invoke('app:version'),
   openVideo: () => ipcRenderer.invoke('dialog:openVideo'),
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   probe: (filePath) => ipcRenderer.invoke('video:probe', filePath),
@@ -16,6 +17,13 @@ contextBridge.exposeInMainWorld('api', {
   cacheSize: () => ipcRenderer.invoke('proxy:cacheSize'),
   clearCache: () => ipcRenderer.invoke('proxy:clearCache'),
   testEncoder: (encoder) => ipcRenderer.invoke('encoder:test', encoder),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateAvailable: (cb) => ipcRenderer.on('update:available', (_e, d) => cb(d)),
+  onUpdateProgress: (cb) => ipcRenderer.on('update:progress', (_e, p) => cb(p)),
+  onUpdateDownloaded: (cb) => ipcRenderer.on('update:downloaded', (_e, d) => cb(d)),
+  onUpdateError: (cb) => ipcRenderer.on('update:error', (_e, m) => cb(m)),
   showItem: (p) => ipcRenderer.invoke('shell:showItem', p),
 
   onDetectProgress: (cb) => ipcRenderer.on('detect:progress', (_e, p) => cb(p)),

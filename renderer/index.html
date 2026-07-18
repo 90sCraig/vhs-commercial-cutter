@@ -294,6 +294,14 @@
     </div>
   </div>
 
+  <div id="updateBanner" class="update-banner hidden">
+    <span id="updateText" class="update-text"></span>
+    <div class="update-actions">
+      <button id="updatePrimary" class="btn btn-primary btn-small"></button>
+      <button id="updateDismiss" class="btn btn-small">Later</button>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 
   <div id="tooltip" class="tooltip hidden"></div>
@@ -333,6 +341,13 @@
         <div class="settings-row">
           <span id="encoderStatus" class="muted"></span>
           <button id="testEncoderBtn" class="btn btn-small">Test encoder</button>
+        </div>
+
+        <h3>Updates</h3>
+        <p>The app checks for updates on launch and notifies you — nothing downloads or installs without your say-so.</p>
+        <div class="settings-row">
+          <span id="updateCheckStatus" class="muted">Version <span id="appVersion">…</span></span>
+          <button id="checkUpdatesBtn" class="btn btn-small">Check for updates</button>
         </div>
       </div>
       <div class="help-foot">

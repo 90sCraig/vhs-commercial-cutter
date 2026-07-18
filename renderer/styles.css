@@ -329,6 +329,18 @@ select:focus { outline: none; border-color: var(--accent); }
 .toast.hidden { display: none; }
 .toast.error { border-left-color: var(--cut); }
 
+/* Update banner */
+.update-banner {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 16px; z-index: 70;
+  background: linear-gradient(#1c2b20, #14211a);
+  border: 1px solid var(--accent-2); border-radius: 10px;
+  padding: 10px 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.update-banner.hidden { display: none; }
+.update-text { font-size: 13px; color: var(--text); }
+.update-actions { display: flex; gap: 8px; }
+
 /* Info icons + tooltips */
 .info {
   display: inline-flex; align-items: center; justify-content: center;

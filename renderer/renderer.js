@@ -698,6 +698,15 @@ async function initSettings() {
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
   $('setEncoder').value = state.settings.encoder;
+  try { $('appVersion').textContent = await window.api.appVersion(); } catch (_) {}
+
+  $('checkUpdatesBtn').addEventListener('click', async () => {
+    $('updateCheckStatus').textContent = 'Checking…';
+    const r = await window.api.checkForUpdates();
+    if (r.reason === 'dev') $('updateCheckStatus').textContent = 'Updates only work in the installed app.';
+    else if (!r.ok) $('updateCheckStatus').textContent = 'Check failed (are you online / is a release published?).';
+    else $('updateCheckStatus').textContent = 'Checked — you’ll be notified if an update is available.';
+  });
 
   $('settingsBtn').addEventListener('click', openSettings);
   $('settingsClose').addEventListener('click', closeSettings);
@@ -729,9 +738,43 @@ async function initSettings() {
   });
 }
 
+// ---- auto-update ------------------------------------------------------
+function showUpdateBanner(text, primaryLabel, onPrimary) {
+  $('updateText').textContent = text;
+  const btn = $('updatePrimary');
+  if (primaryLabel) {
+    btn.textContent = primaryLabel;
+    btn.style.display = '';
+    btn.onclick = onPrimary;
+  } else {
+    btn.style.display = 'none';
+  }
+  $('updateBanner').classList.remove('hidden');
+}
+function hideUpdateBanner() { $('updateBanner').classList.add('hidden'); }
+
+function initUpdates() {
+  $('updateDismiss').addEventListener('click', hideUpdateBanner);
+
+  window.api.onUpdateAvailable((d) => {
+    showUpdateBanner(`Update ${d.version} is available.`, 'Download', () => {
+      showUpdateBanner(`Downloading ${d.version}… 0%`, null);
+      window.api.downloadUpdate();
+    });
+  });
+  window.api.onUpdateProgress((pct) => {
+    showUpdateBanner(`Downloading update… ${pct}%`, null);
+  });
+  window.api.onUpdateDownloaded((d) => {
+    showUpdateBanner(`Update ${d.version} ready.`, 'Restart & install', () => window.api.installUpdate());
+  });
+  window.api.onUpdateError(() => { /* stay quiet; manual check reports errors */ });
+}
+
 function init() {
   initHelp();
   initSettings();
+  initUpdates();
   $('openBtn').addEventListener('click', async () => {
     const f = await window.api.openVideo();
     if (f) loadFile(f);
