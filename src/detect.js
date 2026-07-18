@@ -82,8 +82,10 @@ function buildSegments(boundaries, duration, opts) {
       start,
       end,
       duration: len,
-      // Length heuristic: short blocks between fades are almost always ad pods.
-      keep: len >= opts.maxCommercialLen,
+      // Goal is collecting commercials: short blocks between fades are almost
+      // always ads, so they default to SAVE; long program blocks default to SKIP.
+      // (`keep` = "included in the export".)
+      keep: len < opts.maxCommercialLen,
       confidentBoundary: true,
     });
   };
@@ -93,9 +95,10 @@ function buildSegments(boundaries, duration, opts) {
   }
   pushSeg(cursor, duration);
 
-  // If nothing tripped the detector, fall back to one big "keep everything" seg.
+  // Nothing tripped the detector: one big block, skipped by default (a whole
+  // tape isn't a commercial — the user can mark spots by hand).
   if (segs.length === 0 && duration > 0) {
-    segs.push({ id: 0, start: 0, end: duration, duration, keep: true, confidentBoundary: false });
+    segs.push({ id: 0, start: 0, end: duration, duration, keep: false, confidentBoundary: false });
   }
   return segs;
 }
@@ -151,4 +154,53 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
   };
 }
 
-module.exports = { detect, DEFAULTS };
+// Sample detection: scan only a [start, start+duration] window so you can
+// tune thresholds against a known commercial break without processing the
+// whole tape. Returns boundaries at ABSOLUTE timeline positions.
+async function detectSample(filePath, userOpts = {}, range = {}, hooks = {}) {
+  const opts = { ...DEFAULTS, ...userOpts };
+  const start = Math.max(0, range.start || 0);
+  const dur = Math.max(1, range.duration || 120);
+  const black = [];
+  const silence = [];
+  const vf = `blackdetect=d=${opts.blackDuration}:pix_th=${opts.blackThreshold}`;
+  const af = `silencedetect=n=${opts.silenceDb}dB:d=${opts.silenceDuration}`;
+  const NUL = process.platform === 'win32' ? 'NUL' : '/dev/null';
+
+  const runPass = (hwaccel) => {
+    black.length = 0; silence.length = 0;
+    const args = ['-hide_banner'];
+    if (hwaccel) args.push('-hwaccel', hwaccel);
+    // -ss before -i = fast seek; timestamps come back relative to the slice.
+    args.push('-ss', String(start), '-i', filePath, '-t', String(dur),
+      '-vf', vf, '-af', af, '-f', 'null', NUL);
+    return runFfmpeg(args, {
+      onLine: (line) => parseEvents(line, black, silence),
+      onProgress: (secs) => { if (hooks.onProgress) hooks.onProgress(Math.min(1, secs / dur)); },
+    });
+  };
+
+  try {
+    await runPass(opts.hwaccel || null);
+  } catch (e) {
+    if (opts.hwaccel) { await runPass(null); } else throw e;
+  }
+
+  // Shift slice-relative timestamps back to absolute timeline positions.
+  for (const b of black) { b.start += start; if (b.end != null) b.end += start; }
+  for (const s of silence) { s.start += start; if (s.end != null) s.end += start; }
+
+  const boundaries = buildBoundaries(black, silence, opts);
+  return {
+    rangeStart: start,
+    rangeDuration: dur,
+    boundaries,
+    stats: {
+      blackEvents: black.length,
+      silenceEvents: silence.length,
+      confidentBoundaries: boundaries.filter((b) => b.confident).length,
+    },
+  };
+}
+
+module.exports = { detect, detectSample, DEFAULTS };

@@ -52,11 +52,11 @@
       <div class="timeline-block">
         <div class="timeline-head">
           <span id="timelineTitle">Timeline</span>
-          <span class="info" tabindex="0" data-help="Each block is a clip — green = keep, red = cut. Click to play it. Drag the yellow handles to move a boundary. Double-click a block to flip keep/cut. Zoom with the slider, +/−, or Ctrl+scroll; drag the mini overview below to pan.">i</span>
+          <span class="info" tabindex="0" data-help="Each block is a clip — green = SAVE (a commercial you're keeping), red = SKIP. Click to play it. Drag the yellow handles to move a boundary. Double-click a block to flip save/skip. Zoom with the slider, +/−, or Ctrl+scroll; drag the mini overview below to pan.">i</span>
           <div class="timeline-tools">
             <span id="timelineLegend" class="legend">
-              <i class="sw keep"></i> keep
-              <i class="sw cut"></i> cut
+              <i class="sw keep"></i> save
+              <i class="sw cut"></i> skip
             </span>
             <div class="zoom">
               <button id="zoomOut" class="btn btn-small" title="Zoom out">−</button>
@@ -107,10 +107,35 @@
           <div class="field">
             <label>Max commercial length <output id="maxCommercialOut">6.0 min</output></label>
             <input id="maxCommercial" type="range" min="30" max="600" step="10" value="360" />
-            <small>Segments shorter than this are auto-guessed as commercials.</small>
+            <small>Clips shorter than this are saved as commercials; longer blocks are skipped as the show.</small>
           </div>
           <button id="detectBtn" class="btn btn-accent full" disabled>Detect commercials</button>
           <div id="detectStats" class="stats"></div>
+
+          <div class="sample-box">
+            <div class="sample-row">
+              <button id="sampleBtn" class="btn btn-small" disabled>Test here</button>
+              <select id="sampleLen" class="sample-len">
+                <option value="60">1 min</option>
+                <option value="120">2 min</option>
+                <option value="180" selected>3 min</option>
+                <option value="300">5 min</option>
+              </select>
+              <span class="sample-hint">from playhead</span>
+            </div>
+            <small>Scrub to a break, tune the sliders, and test on a short sample before scanning the whole tape.</small>
+            <div id="sampleResult" class="stats"></div>
+          </div>
+
+          <details class="tips">
+            <summary>Missing commercials, or grabbing too much?</summary>
+            <ul>
+              <li><b>Commercials missed:</b> raise <b>Black sensitivity</b> (some tapes fade to dark gray, not pure black) and/or <b>Silence threshold</b>. Use <b>Test here</b> on a known break to check.</li>
+              <li><b>A commercial got skipped (or show got saved):</b> adjust <b>Max commercial length</b> — clips shorter than it are saved as ads. Or flip any clip with <b>K</b>.</li>
+              <li><b>Grabbing chunks of the show:</b> lower <b>Black sensitivity</b> and raise <b>Min commercial gap</b>.</li>
+              <li><b>Station never fades to black:</b> detection can’t see those — mark commercials by hand with <b>S</b> (split), then flip with <b>K</b>.</li>
+            </ul>
+          </details>
         </div>
 
         <div class="card">
@@ -177,14 +202,14 @@
             <span class="info" tabindex="0" data-help="Render your result. Use a preset for the two common jobs, or set options by hand. 'Program' exports the show with commercials removed; 'Commercials' exports the ads (great reframed vertical for TikTok/Reels). Export always uses the full-quality source.">i</span>
           </div>
           <div class="preset-row">
-            <button id="presetSocial" class="chip" title="Commercials → vertical 9:16, blurred background, separate clips">🎬 Social clips</button>
-            <button id="presetClean" class="chip" title="Kept program → source frame, one merged file">📺 Clean tape</button>
+            <button id="presetSocial" class="chip" title="Saved commercials → vertical 9:16, blurred background, separate clips">🎬 Commercial clips</button>
+            <button id="presetClean" class="chip" title="The show → source frame, one merged file">📺 Keep the show</button>
           </div>
           <div class="field">
-            <label>What to export <span class="info" tabindex="0" data-help="Program = the clips you kept (the show, ads removed). Commercials = the clips you cut (the ads themselves).">i</span></label>
+            <label>What to export <span class="info" tabindex="0" data-help="Commercials = the clips you saved (green) — the ads themselves. The show = everything you skipped (red).">i</span></label>
             <select id="exportTarget">
-              <option value="keep">Program — the clips I kept</option>
-              <option value="cut">Commercials — the clips I cut</option>
+              <option value="save">Commercials — the clips I saved</option>
+              <option value="skip">The show — everything I skipped</option>
             </select>
           </div>
           <div class="field">
@@ -271,7 +296,7 @@
             <button id="outBtn" class="btn btn-small" title="Set clip end to playhead (O)">Set Out</button>
           </div>
           <div class="seg-bulk">
-            <button id="keepAllBtn" class="btn btn-small">Keep all</button>
+            <button id="keepAllBtn" class="btn btn-small">Save all</button>
             <button id="invertBtn" class="btn btn-small">Invert</button>
           </div>
         </div>
@@ -280,7 +305,7 @@
         <div class="empty-note">Load a capture and run detection to see segments.</div>
       </div>
       <div class="kbd-hint">
-        Space play · ←/→ step frame (Shift = 1s) · S split · M merge · I/O set in-out · K keep⁄cut · drag timeline boundaries
+        Space play · ←/→ step frame (Shift = 1s) · S split · M merge · I/O set in-out · K save⁄skip · drag timeline boundaries
       </div>
     </section>
   </main>
@@ -364,27 +389,27 @@
         <button id="helpClose" class="help-close" title="Close">✕</button>
       </div>
       <div class="help-body">
-        <p class="lead">VHS Editor finds the commercials in a digitized tape, lets you fix up the picture and sound, and exports either a <b>clean commercial-free copy</b> or the <b>commercials themselves as vertical clips</b> for TikTok / Reels.</p>
+        <p class="lead">90s Craig Edit Booth finds the <b>commercials</b> in a digitized VHS tape so you can <b>save them as clips</b> — reframed vertical for TikTok / Reels. It can also do the reverse and keep just the show.</p>
 
         <h3>Quick start</h3>
         <ol>
           <li><b>Open a capture</b> — click <em>Open capture…</em> (top-right) or drag a video onto the player. A small preview builds in the background so scrubbing is fast — watch the badge at the top-left of the video. Detection and export always use your full-quality original, never the preview.</li>
-          <li><b>Detect commercials</b> — click <em>Detect commercials</em>. It scans for fade-to-black + audio silence (the marks between show and ads) and splits the tape into clips.</li>
-          <li><b>Review</b> — clips appear on the timeline and in the list, colored <span class="k">green = keep</span> / <span class="c">red = cut</span>. Click one to play it, and fix any mistakes (see <em>Editing</em>).</li>
-          <li><b>Pick a preset</b> — in Export, click <em>📺 Clean tape</em> or <em>🎬 Social clips</em>.</li>
+          <li><b>Detect commercials</b> — click <em>Detect commercials</em>. It scans for fade-to-black + audio silence (the marks between show and ads) and splits the tape into clips, with the ads defaulting to <b>save</b>.</li>
+          <li><b>Review</b> — clips appear on the timeline and in the list, colored <span class="k">green = save</span> / <span class="c">red = skip</span>. Click one to play it, and fix any mistakes (see <em>Editing</em>).</li>
+          <li><b>Pick a preset</b> — in Export, click <em>🎬 Commercial clips</em> (or <em>📺 Keep the show</em>).</li>
           <li><b>Export</b> — choose an output folder if you like, then <em>Export</em>. Files save next to your source by default.</li>
         </ol>
 
         <h3>The two jobs</h3>
         <ul>
-          <li><b>📺 Clean tape</b> — exports the kept <b>program</b> as one merged file, commercials removed.</li>
-          <li><b>🎬 Social clips</b> — exports the cut <b>commercials</b>, reframed to vertical 9:16 with a blurred background, as separate ready-to-post files.</li>
+          <li><b>🎬 Commercial clips</b> — the main event: exports your <b>saved commercials</b>, reframed to vertical 9:16 with a blurred background, as separate ready-to-post files.</li>
+          <li><b>📺 Keep the show</b> — the reverse: exports the <b>skipped</b> program as one merged file, commercials removed.</li>
         </ul>
 
         <h3>Editing clips</h3>
         <p>Detection gets you most of the way; fine-tune the rest:</p>
         <ul>
-          <li><b>Click</b> a clip to select and preview it. Click its keep/cut tag (or press <kbd>K</kbd>) to flip it.</li>
+          <li><b>Click</b> a clip to select and preview it. Click its save/skip tag (or press <kbd>K</kbd>) to flip it.</li>
           <li><b>Drag</b> the yellow boundary handles on the timeline to move where a clip starts/ends.</li>
           <li><kbd>S</kbd> <b>split</b> the selected clip at the playhead · <kbd>M</kbd> / <kbd>Shift</kbd>+<kbd>M</kbd> <b>merge</b> with the previous/next clip.</li>
           <li><kbd>I</kbd> / <kbd>O</kbd> snap the selected clip's <b>in / out</b> point to the playhead.</li>
@@ -397,6 +422,7 @@
           <li><b>Min commercial gap</b> — ignores tiny gaps (noise).</li>
           <li><b>Max commercial length</b> — clips shorter than this are guessed to be commercials.</li>
         </ul>
+        <p><b>Tune without scanning the whole tape:</b> scrub to a spot you know has a commercial break, then use <em>Test here</em> (under the Detect button) to scan just a short sample. Candidate breaks show as cyan marks on the timeline. Adjust the sliders and re-test until it catches the break, then run full detection. If breaks are still missed, raise <b>Black sensitivity</b> / <b>Silence threshold</b>; if it over-cuts, lower them and raise <b>Min commercial gap</b>. Stations that never fade to black can't be detected — add those cuts by hand with <kbd>S</kbd>.</p>
 
         <h3>Restore (optional)</h3>
         <ul>
@@ -407,7 +433,7 @@
 
         <h3>Export settings</h3>
         <ul>
-          <li><b>What to export</b> — kept program, or the cut commercials.</li>
+          <li><b>What to export</b> — the saved commercials, or the skipped show.</li>
           <li><b>Frame / Fill</b> — keep source shape or reframe for social; Fill handles the leftover space (blurred background looks best).</li>
           <li><b>Resolution · Frame rate · Quality</b> — output size and encoding (Archive → Low).</li>
           <li><b>Export as</b> — a custom filename. <b>One merged file</b> vs <b>Separate clips</b>.</li>
@@ -415,7 +441,7 @@
 
         <h3>Keyboard</h3>
         <p class="keys">
-          <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> step frame (<kbd>Shift</kbd> = 1&nbsp;sec) · <kbd>Home</kbd>/<kbd>End</kbd> · <kbd>S</kbd> split · <kbd>M</kbd> merge · <kbd>I</kbd>/<kbd>O</kbd> set in-out · <kbd>K</kbd> keep/cut
+          <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> step frame (<kbd>Shift</kbd> = 1&nbsp;sec) · <kbd>Home</kbd>/<kbd>End</kbd> · <kbd>S</kbd> split · <kbd>M</kbd> merge · <kbd>I</kbd>/<kbd>O</kbd> set in-out · <kbd>K</kbd> save/skip
         </p>
         <p class="tip-note">Tip: hover the <span class="info" style="pointer-events:none">i</span> icons around the app for quick explanations of each control.</p>
       </div>

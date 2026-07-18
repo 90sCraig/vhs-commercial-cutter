@@ -1,6 +1,6 @@
-// Export: render the chosen segments (the kept program, or the cut commercials)
-// either merged into one file or split into one file per segment. Optionally
-// reframe to a vertical/portrait/square social format, and apply VHS color fix.
+// Export: render the chosen segments (the saved commercials, or the skipped
+// show) either merged into one file or split into one file per segment.
+// Optionally reframe to a vertical/portrait/square social format + color fix.
 
 const fs = require('fs');
 const path = require('path');
@@ -150,22 +150,22 @@ function concatParts(parts, outPath) {
 }
 
 // mode: 'merged' | 'split'
-// target: 'keep' (program) | 'cut' (commercials)
+// target: 'save' (the clips you're keeping — commercials by default) | 'skip' (the rest)
 // layout: { frame: 'source'|'9:16'|'4:5'|'1:1', fill: 'blur'|'bars'|'crop' }
-async function exportVideo({ input, segments, mode, target = 'keep', correction, enhance = 'off', layout, quality = 'high', fps = 'source', audioDriftMs = 0, encoder = 'cpu', outputDir, baseName }, hooks = {}) {
+async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', fps = 'source', audioDriftMs = 0, encoder = 'cpu', outputDir, baseName }, hooks = {}) {
   const encodeOpts = { correction, enhance, layout, quality, fps, audioDriftMs, encoder };
   const chosen = segments
-    .filter((s) => (target === 'cut' ? !s.keep : s.keep))
+    .filter((s) => (target === 'skip' ? !s.keep : s.keep))
     .sort((a, b) => a.start - b.start);
   if (chosen.length === 0) {
-    throw new Error(target === 'cut'
-      ? 'No clips are marked "cut" — nothing to export.'
-      : 'No clips are marked "keep" — nothing to export.');
+    throw new Error(target === 'skip'
+      ? 'No clips are marked "skip" — nothing to export.'
+      : 'No clips are marked "save" — nothing to export.');
   }
 
-  // Naming: program vs commercials, split vs merged.
-  const splitTag = target === 'cut' ? 'clip' : 'part';
-  const mergedTag = target === 'cut' ? 'commercials' : 'clean';
+  // Naming: saved commercials vs the skipped show, split vs merged.
+  const splitTag = target === 'skip' ? 'show' : 'clip';
+  const mergedTag = target === 'skip' ? 'show' : 'commercials';
 
   const totalDuration = chosen.reduce((sum, s) => sum + (s.end - s.start), 0);
   let doneDuration = 0;

@@ -10,6 +10,8 @@ const state = {
   zoom: 1,
   previewEnd: null, // when previewing a single segment, pause here
   usingProxy: false,
+  sampleBoundaries: [], // candidate boundaries from a "Test here" sample
+  sampleRange: null,    // { start, end } of the last sample scan
 };
 
 // ---- helpers ----------------------------------------------------------
@@ -73,6 +75,8 @@ async function loadFile(filePath) {
     state.info = await window.api.probe(filePath);
     state.duration = state.info.duration;
     $('detectBtn').disabled = false;
+    $('sampleBtn').disabled = false;
+    state.sampleBoundaries = []; state.sampleRange = null;
     buildProxyFor(filePath); // build a fast-seeking preview in the background
     if (!state.outputDir) $('outputDir').placeholder = dirName(filePath);
     const i = state.info;
@@ -139,15 +143,45 @@ function detectOpts() {
   };
 }
 
+// Quick detection on a short window from the playhead, for tuning the sliders.
+async function runSample() {
+  if (!state.filePath) return;
+  const p = $('player');
+  const len = parseInt($('sampleLen').value, 10);
+  const start = p.currentTime;
+  $('sampleResult').textContent = 'Testing…';
+  $('sampleBtn').disabled = true;
+  try {
+    const res = await window.api.detectSample(state.filePath, detectOpts(), { start, duration: len });
+    state.sampleRange = { start: res.rangeStart, end: res.rangeStart + res.rangeDuration };
+    state.sampleBoundaries = res.boundaries.map((b) => ({ mid: b.mid, confident: b.confident }));
+    const s = res.stats;
+    const verdict = s.confidentBoundaries > 0
+      ? `<b>${s.confidentBoundaries}</b> boundary${s.confidentBoundaries > 1 ? 'ies' : ''} found`
+      : (s.blackEvents || s.silenceEvents
+        ? 'no black+silence match — try raising sensitivity'
+        : 'nothing detected — raise sensitivity, or no break here');
+    $('sampleResult').innerHTML =
+      `Sample ${fmtTime(res.rangeStart)}–${fmtTime(state.sampleRange.end)}: ` +
+      `${s.blackEvents} black / ${s.silenceEvents} silence · ${verdict}`;
+    renderTimeline();
+  } catch (e) {
+    $('sampleResult').textContent = 'Sample failed: ' + e.message;
+  } finally {
+    $('sampleBtn').disabled = false;
+  }
+}
+
 async function runDetect() {
   if (!state.filePath) return;
+  state.sampleBoundaries = []; state.sampleRange = null; // clear sample overlay
   showOverlay('Detecting commercials…', 'Scanning for black + silence boundaries');
   setBar(0);
   try {
     const res = await window.api.detect(state.filePath, detectOpts());
     state.segments = res.segments;
     state.duration = res.duration || state.duration;
-    const cut = res.segments.filter((s) => !s.keep).length;
+    const saved = res.segments.filter((s) => s.keep).length;
     $('detectStats').textContent =
       `${res.segments.length} segments · ${res.stats.confidentBoundaries} strong boundaries · ` +
       `${res.stats.blackEvents} black / ${res.stats.silenceEvents} silence events`;
@@ -155,7 +189,7 @@ async function runDetect() {
     renderSegmentList();
     updateExportSummary();
     $('exportBtn').disabled = false;
-    toast(`Found ${res.segments.length} segments — ${cut} guessed as commercials to cut.`);
+    toast(`Found ${saved} commercial${saved === 1 ? '' : 's'} to save (${res.segments.length} segments).`);
   } catch (e) {
     toast('Detection failed: ' + e.message, true);
   } finally {
@@ -183,7 +217,7 @@ function renderTimeline() {
     el.style.flexGrow = String(Math.max(0.0001, seg.duration));
     el.style.flexBasis = '0';
     if (state.selected === seg.id) el.classList.add('selected');
-    el.title = `${fmtTime(seg.start)}–${fmtTime(seg.end)} (${fmtDur(seg.duration)}) · ${seg.keep ? 'keep' : 'cut'}`;
+    el.title = `${fmtTime(seg.start)}–${fmtTime(seg.end)} (${fmtDur(seg.duration)}) · ${seg.keep ? 'save' : 'skip'}`;
     el.addEventListener('click', () => selectSegment(seg.id, { seek: true }));
     el.addEventListener('dblclick', () => toggleSegment(seg.id));
     tl.appendChild(el);
@@ -198,6 +232,22 @@ function renderTimeline() {
     h.addEventListener('pointerdown', (e) => startBoundaryDrag(e, i));
     tl.appendChild(h);
   }
+  // Sample-scan overlay: highlight the tested window and show candidate marks.
+  if (state.sampleRange && dur) {
+    const band = document.createElement('div');
+    band.className = 'sample-band';
+    band.style.left = (state.sampleRange.start / dur * 100) + '%';
+    band.style.width = ((state.sampleRange.end - state.sampleRange.start) / dur * 100) + '%';
+    tl.appendChild(band);
+  }
+  for (const m of state.sampleBoundaries || []) {
+    const t = document.createElement('div');
+    t.className = 'sample-tick' + (m.confident ? ' confident' : '');
+    t.style.left = (m.mid / dur * 100) + '%';
+    t.title = `candidate boundary at ${fmtTime(m.mid)}`;
+    tl.appendChild(t);
+  }
+
   tl.appendChild(playhead);
   renderScale();
   renderMinimap();
@@ -353,8 +403,8 @@ function renderSegmentList() {
     $('segCount').textContent = 'Segments';
     return;
   }
-  const keep = state.segments.filter((s) => s.keep).length;
-  $('segCount').textContent = `${state.segments.length} segments · ${keep} kept`;
+  const saved = state.segments.filter((s) => s.keep).length;
+  $('segCount').textContent = `${state.segments.length} segments · ${saved} saved`;
   list.innerHTML = '';
   state.segments.forEach((seg, idx) => {
     const row = document.createElement('div');
@@ -363,7 +413,7 @@ function renderSegmentList() {
       <span class="seg-dot ${segClass(seg)}"></span>
       <span class="seg-time">${String(idx + 1).padStart(2, '0')} · ${fmtTime(seg.start)} → ${fmtTime(seg.end)}</span>
       <span class="seg-dur">${fmtDur(seg.duration)}</span>
-      <span class="seg-tag ${segClass(seg)}">${seg.keep ? 'keep' : 'cut'}</span>`;
+      <span class="seg-tag ${segClass(seg)}">${seg.keep ? 'save' : 'skip'}</span>`;
     row.addEventListener('click', () => selectSegment(seg.id, { seek: true, play: true }));
     const tag = row.querySelector('.seg-tag');
     tag.addEventListener('click', (e) => { e.stopPropagation(); toggleSegment(seg.id); });
@@ -495,18 +545,18 @@ function colorSettings() {
 function exportMode() {
   return document.querySelector('input[name=mode]:checked').value;
 }
-function exportTarget() { return $('exportTarget').value; } // 'keep' | 'cut'
+function exportTarget() { return $('exportTarget').value; } // 'save' | 'skip'
 
 // Apply a one-click export preset, then reflect it in the controls.
 function applyPreset(name) {
   const setMode = (v) => { document.querySelector(`input[name=mode][value=${v}]`).checked = true; };
   if (name === 'social') {
-    $('exportTarget').value = 'cut';
+    $('exportTarget').value = 'save';
     $('exportFrame').value = '9:16';
     $('exportFill').value = 'blur';
     setMode('split');
   } else if (name === 'clean') {
-    $('exportTarget').value = 'keep';
+    $('exportTarget').value = 'skip';
     $('exportFrame').value = 'source';
     setMode('merged');
   }
@@ -545,8 +595,8 @@ const FRAME_LABELS = {
 
 function updateExportSummary() {
   const target = exportTarget();
-  const chosen = state.segments.filter((s) => (target === 'cut' ? !s.keep : s.keep));
-  const noun = target === 'cut' ? 'commercial' : 'kept';
+  const chosen = state.segments.filter((s) => (target === 'skip' ? !s.keep : s.keep));
+  const noun = target === 'skip' ? 'show' : 'commercial';
   if (chosen.length === 0) {
     $('exportSummary').textContent = state.segments.length ? `No ${noun} clips selected.` : '';
     $('exportBtn').disabled = chosen.length === 0;
@@ -570,9 +620,9 @@ function updateExportSummary() {
 
 async function runExport() {
   const target = exportTarget();
-  const chosen = state.segments.filter((s) => (target === 'cut' ? !s.keep : s.keep));
+  const chosen = state.segments.filter((s) => (target === 'skip' ? !s.keep : s.keep));
   if (chosen.length === 0) {
-    return toast(`No ${target === 'cut' ? 'commercial (cut)' : 'kept'} clips to export.`, true);
+    return toast(`No ${target === 'skip' ? 'skipped (show)' : 'saved (commercial)'} clips to export.`, true);
   }
   const outputDir = state.outputDir || dirName(state.filePath);
   const payload = {
@@ -780,6 +830,7 @@ function init() {
     if (f) loadFile(f);
   });
   $('detectBtn').addEventListener('click', runDetect);
+  $('sampleBtn').addEventListener('click', runSample);
   $('exportBtn').addEventListener('click', runExport);
 
   $('folderBtn').addEventListener('click', async () => {

@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const { ffprobeInfo, FFMPEG, FFPROBE } = require('./src/ffmpeg');
-const { detect } = require('./src/detect');
+const { detect, detectSample } = require('./src/detect');
 const { exportVideo } = require('./src/export');
 const { ensureProxy, cacheSize, clearCache } = require('./src/proxy');
 const settings = require('./src/settings');
@@ -78,6 +78,11 @@ ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
   return detect(filePath, opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
   });
+});
+
+ipcMain.handle('detect:sample', async (_e, { filePath, opts, range }) => {
+  opts.hwaccel = decodeAccel(settings.load().encoder);
+  return detectSample(filePath, opts, range);
 });
 
 ipcMain.handle('export:run', async (_e, payload) => {

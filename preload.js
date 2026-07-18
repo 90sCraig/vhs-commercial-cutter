@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   probe: (filePath) => ipcRenderer.invoke('video:probe', filePath),
   detect: (filePath, opts) => ipcRenderer.invoke('detect:run', { filePath, opts }),
+  detectSample: (filePath, opts, range) => ipcRenderer.invoke('detect:sample', { filePath, opts, range }),
   export: (payload) => ipcRenderer.invoke('export:run', payload),
   buildProxy: (filePath, duration) => ipcRenderer.invoke('proxy:ensure', { filePath, duration }),
   getSettings: () => ipcRenderer.invoke('settings:get'),

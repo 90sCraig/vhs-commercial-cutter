@@ -195,6 +195,18 @@ body::after {
   transform: translateX(-50%); background: var(--boundary); opacity: .55;
 }
 .bhandle:hover::before { opacity: 1; width: 3px; box-shadow: 0 0 6px var(--boundary); }
+.sample-band {
+  position: absolute; top: 0; bottom: 0; z-index: 1;
+  background: rgba(79,208,224,0.10);
+  border-left: 1px dashed rgba(79,208,224,0.6);
+  border-right: 1px dashed rgba(79,208,224,0.6);
+  pointer-events: none;
+}
+.sample-tick {
+  position: absolute; top: 0; bottom: 0; width: 2px; z-index: 3;
+  background: #4fd0e0; opacity: .55; pointer-events: none;
+}
+.sample-tick.confident { opacity: 1; box-shadow: 0 0 7px #4fd0e0; }
 .timeline-scale { position: relative; height: 16px; margin-top: 2px; }
 .timeline-scale span { position: absolute; font-size: 10px; color: var(--muted); transform: translateX(-50%); font-family: var(--mono); }
 
@@ -262,6 +274,27 @@ select:focus { outline: none; border-color: var(--accent); }
 .chip.active { border-color: var(--accent); background: rgba(255,93,143,0.12); }
 .summary { font-size: 12px; color: var(--muted); margin: 8px 0 12px; line-height: 1.5; min-height: 16px; }
 .stats { font-size: 11px; color: var(--muted); margin-top: 10px; font-family: var(--mono); line-height: 1.5; }
+.stats b { color: var(--accent); }
+
+/* Sample-detect box */
+.sample-box { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.sample-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sample-len { width: auto; flex: 0 0 auto; padding: 5px 8px; }
+.sample-hint { font-size: 11px; color: var(--muted); }
+#sampleResult { color: var(--accent-2); }
+
+/* Tuning tips */
+.tips { margin-top: 12px; font-size: 12px; }
+.tips summary {
+  cursor: pointer; color: var(--accent); letter-spacing: .3px;
+  padding: 6px 0; list-style: none;
+}
+.tips summary::before { content: '▸ '; }
+.tips[open] summary::before { content: '▾ '; }
+.tips summary::-webkit-details-marker { display: none; }
+.tips ul { margin: 6px 0 2px; padding-left: 16px; color: var(--muted); line-height: 1.6; }
+.tips li { margin: 5px 0; }
+.tips b { color: var(--text); }
 
 /* Buttons — chunky beveled console keys */
 .btn {
