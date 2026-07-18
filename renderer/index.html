@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; media-src 'self' file:; img-src 'self' data: file:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>90s Craig Edit Booth</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">●</span>
+      <div>
+        <div class="brand-name">90s&nbsp;Craig</div>
+        <div class="brand-sub">edit booth</div>
+      </div>
+      <span class="ch-sticker tape-label">CH. 99</span>
+    </div>
+    <div class="topbar-actions">
+      <span id="fileLabel" class="file-label">No capture loaded</span>
+      <button id="settingsBtn" class="btn" title="Settings">⚙ Settings</button>
+      <button id="guideBtn" class="btn" title="How to use 90s Craig Edit Booth">Guide</button>
+      <button id="openBtn" class="btn btn-primary">Open capture…</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- LEFT: preview + timeline -->
+    <section class="stage">
+      <div class="monitor-head">
+        <span class="rec"><i class="rec-dot"></i> Preview</span>
+        <span class="tape-label" id="tapeLabel">NO TAPE</span>
+        <span class="tc" id="monitorTc">00:00:00</span>
+      </div>
+      <div class="player-wrap">
+        <video id="player" controls preload="auto"></video>
+        <div id="proxyStatus" class="proxy-status hidden">
+          <span class="dot"></span>
+          <span id="proxyStatusText"></span>
+          <span id="proxyBar" class="proxy-bar hidden"><span id="proxyBarFill"></span></span>
+        </div>
+        <div id="playerEmpty" class="player-empty">
+          <div class="drop-hint">
+            <span class="big">Drop a VHS capture here</span>
+            <span class="small">or use “Open capture…”. MP4 / MKV / AVI / MOV</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-block">
+        <div class="timeline-head">
+          <span id="timelineTitle">Timeline</span>
+          <span class="info" tabindex="0" data-help="Each block is a clip — green = keep, red = cut. Click to play it. Drag the yellow handles to move a boundary. Double-click a block to flip keep/cut. Zoom with the slider, +/−, or Ctrl+scroll; drag the mini overview below to pan.">i</span>
+          <div class="timeline-tools">
+            <span id="timelineLegend" class="legend">
+              <i class="sw keep"></i> keep
+              <i class="sw cut"></i> cut
+            </span>
+            <div class="zoom">
+              <button id="zoomOut" class="btn btn-small" title="Zoom out">−</button>
+              <input id="zoomSlider" class="zoom-slider" type="range" min="0" max="1" step="0.004" value="0" title="Zoom" />
+              <button id="zoomIn" class="btn btn-small" title="Zoom in">+</button>
+              <span id="zoomLabel" class="zoom-label">1.0×</span>
+              <button id="zoomFit" class="btn btn-small" title="Fit to width">Fit</button>
+            </div>
+          </div>
+        </div>
+        <div id="timelineScroll" class="timeline-scroll">
+          <div id="timelineTrack" class="timeline-track">
+            <div id="timeline" class="timeline">
+              <div id="playhead" class="playhead"></div>
+            </div>
+            <div class="timeline-scale" id="timelineScale"></div>
+          </div>
+        </div>
+        <div id="minimap" class="minimap" title="Overview — drag to pan">
+          <div id="minimapWindow" class="minimap-window"></div>
+        </div>
+        <div class="scroll-hint">Ctrl + scroll to zoom · scroll to pan · drag the overview</div>
+      </div>
+    </section>
+
+    <!-- RIGHT: controls -->
+    <aside class="panel">
+      <div class="panel-scroll">
+
+        <div class="card">
+          <div class="card-title">1 · Detect commercials
+            <span class="info" tabindex="0" data-help="Scans the tape for fade-to-black plus audio silence — the marks TV stations put between the show and the ads — and splits it into clips. Click 'Detect commercials' to run it. Tune the sliders below if it misses or over-splits.">i</span>
+          </div>
+          <div class="field">
+            <label>Black sensitivity <output id="blackOut">0.10</output></label>
+            <input id="blackThreshold" type="range" min="0.02" max="0.30" step="0.01" value="0.10" />
+            <small>Higher = treats darker (not pure black) frames as boundaries.</small>
+          </div>
+          <div class="field">
+            <label>Silence threshold <output id="silenceOut">-30 dB</output></label>
+            <input id="silenceDb" type="range" min="-50" max="-15" step="1" value="-30" />
+            <small>Quieter audio must fall below this to count as a drop.</small>
+          </div>
+          <div class="field">
+            <label>Min commercial gap <output id="minCommercialOut">8 s</output></label>
+            <input id="minCommercial" type="range" min="2" max="30" step="1" value="8" />
+          </div>
+          <div class="field">
+            <label>Max commercial length <output id="maxCommercialOut">6.0 min</output></label>
+            <input id="maxCommercial" type="range" min="30" max="600" step="10" value="360" />
+            <small>Segments shorter than this are auto-guessed as commercials.</small>
+          </div>
+          <button id="detectBtn" class="btn btn-accent full" disabled>Detect commercials</button>
+          <div id="detectStats" class="stats"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">2 · Restore <span class="muted">(optional)</span>
+            <span class="info" tabindex="0" data-help="Clean up the picture and sound. Enhance removes VHS grain and re-sharpens; Correct color fixes dark, washed-out, or off-tint footage; Audio drift fixes lip-sync. All of this is applied when you export, using your full-quality original (not the preview).">i</span>
+          </div>
+
+          <div class="field">
+            <label>Enhance — denoise + sharpen</label>
+            <select id="enhancePreset">
+              <option value="off" selected>Off</option>
+              <option value="sp">SP tape — light</option>
+              <option value="lp">LP tape — medium</option>
+              <option value="ep">EP/SLP tape — heavy</option>
+            </select>
+            <small>Removes VHS grain and re-sharpens softness. Heavier for slower tape speeds.</small>
+          </div>
+
+          <label class="switch">
+            <input id="colorEnabled" type="checkbox" />
+            <span>Correct color</span>
+          </label>
+          <div id="colorControls" class="disabled-group">
+            <div class="field">
+              <label>Brightness <output id="brightnessOut">0.05</output></label>
+              <input id="brightness" type="range" min="-0.3" max="0.3" step="0.01" value="0.05" />
+            </div>
+            <div class="field">
+              <label>Contrast <output id="contrastOut">1.10</output></label>
+              <input id="contrast" type="range" min="0.5" max="2" step="0.05" value="1.10" />
+            </div>
+            <div class="field">
+              <label>Saturation <output id="saturationOut">1.20</output></label>
+              <input id="saturation" type="range" min="0" max="3" step="0.05" value="1.20" />
+            </div>
+            <div class="field">
+              <label>Gamma <output id="gammaOut">1.00</output></label>
+              <input id="gamma" type="range" min="0.4" max="2" step="0.01" value="1.00" />
+            </div>
+            <div class="sub-label">Color balance</div>
+            <div class="field">
+              <label>Red <output id="rgbROut">0.00</output></label>
+              <input id="rgbR" type="range" min="-0.5" max="0.5" step="0.02" value="0" />
+            </div>
+            <div class="field">
+              <label>Green <output id="rgbGOut">0.00</output></label>
+              <input id="rgbG" type="range" min="-0.5" max="0.5" step="0.02" value="0" />
+            </div>
+            <div class="field">
+              <label>Blue <output id="rgbBOut">0.00</output></label>
+              <input id="rgbB" type="range" min="-0.5" max="0.5" step="0.02" value="0" />
+            </div>
+          </div>
+
+          <div class="field" style="margin-top:12px">
+            <label>Audio drift <output id="driftOut">0 ms</output></label>
+            <input id="audioDrift" type="range" min="-500" max="500" step="10" value="0" />
+            <small>Shift audio to fix lip-sync. Positive = audio later.</small>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">3 · Export
+            <span class="info" tabindex="0" data-help="Render your result. Use a preset for the two common jobs, or set options by hand. 'Program' exports the show with commercials removed; 'Commercials' exports the ads (great reframed vertical for TikTok/Reels). Export always uses the full-quality source.">i</span>
+          </div>
+          <div class="preset-row">
+            <button id="presetSocial" class="chip" title="Commercials → vertical 9:16, blurred background, separate clips">🎬 Social clips</button>
+            <button id="presetClean" class="chip" title="Kept program → source frame, one merged file">📺 Clean tape</button>
+          </div>
+          <div class="field">
+            <label>What to export <span class="info" tabindex="0" data-help="Program = the clips you kept (the show, ads removed). Commercials = the clips you cut (the ads themselves).">i</span></label>
+            <select id="exportTarget">
+              <option value="keep">Program — the clips I kept</option>
+              <option value="cut">Commercials — the clips I cut</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Frame <span class="info" tabindex="0" data-help="Keep the original shape, or reframe for social: 9:16 vertical for TikTok/Reels, 4:5 for Instagram, 1:1 square. Reframing shows a Fill option for the leftover space.">i</span></label>
+            <select id="exportFrame">
+              <option value="source">Source (as captured)</option>
+              <option value="9:16">Vertical 9:16 — 1080×1920 · Reels/TikTok</option>
+              <option value="4:5">Portrait 4:5 — 1080×1350 · Instagram</option>
+              <option value="1:1">Square 1:1 — 1080×1080</option>
+            </select>
+          </div>
+          <div class="field" id="fillField" style="display:none">
+            <label>Fill empty space <span class="info" tabindex="0" data-help="A 4:3 tape doesn't fill a tall 9:16 frame. Blurred background (recommended) puts a soft zoomed copy behind the clip. Black bars leaves plain bars. Crop to fill zooms in edge-to-edge, losing the sides.">i</span></label>
+            <select id="exportFill">
+              <option value="blur">Blurred background (recommended)</option>
+              <option value="bars">Black bars</option>
+              <option value="crop">Crop to fill</option>
+            </select>
+          </div>
+          <div class="field" id="resolutionField">
+            <label>Resolution</label>
+            <select id="exportResolution">
+              <option value="source">Same as source</option>
+              <option value="1080">1080p</option>
+              <option value="720">720p</option>
+              <option value="480">480p</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Frame rate</label>
+              <select id="exportFps">
+                <option value="source">Same as source</option>
+                <option value="24">24</option>
+                <option value="25">25 · PAL</option>
+                <option value="29.97">29.97 · NTSC</option>
+                <option value="30">30</option>
+                <option value="60">60</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Quality</label>
+              <select id="exportQuality">
+                <option value="archive">Archive · near-lossless</option>
+                <option value="high" selected>High · Blu-ray</option>
+                <option value="balanced">Balanced · YouTube</option>
+                <option value="efficient">Efficient · DVD</option>
+                <option value="low">Low · VHS LP</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Export as</label>
+            <input id="exportName" type="text" class="text-input" placeholder="(source file name)" />
+          </div>
+          <div class="seg-toggle">
+            <label class="radio"><input type="radio" name="mode" value="merged" checked /> <span>One merged file</span></label>
+            <label class="radio"><input type="radio" name="mode" value="split" /> <span>Separate clips</span></label>
+          </div>
+          <div class="field">
+            <label>Output folder</label>
+            <div class="folder-row">
+              <input id="outputDir" type="text" readonly placeholder="Same as source" />
+              <button id="folderBtn" class="btn btn-small">Choose…</button>
+            </div>
+          </div>
+          <div class="summary" id="exportSummary"></div>
+          <button id="exportBtn" class="btn btn-primary full" disabled>Export</button>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Segment list -->
+    <section class="segments">
+      <div class="segments-head">
+        <span id="segCount">Segments</span>
+        <div class="seg-actions">
+          <div class="seg-edit">
+            <button id="splitBtn" class="btn btn-small" title="Split selected clip at the playhead (S)">Split</button>
+            <button id="mergePrevBtn" class="btn btn-small" title="Merge selected into previous clip (M)">Merge ◀</button>
+            <button id="mergeNextBtn" class="btn btn-small" title="Merge selected into next clip (Shift+M)">Merge ▶</button>
+            <button id="inBtn" class="btn btn-small" title="Set clip start to playhead (I)">Set In</button>
+            <button id="outBtn" class="btn btn-small" title="Set clip end to playhead (O)">Set Out</button>
+          </div>
+          <div class="seg-bulk">
+            <button id="keepAllBtn" class="btn btn-small">Keep all</button>
+            <button id="invertBtn" class="btn btn-small">Invert</button>
+          </div>
+        </div>
+      </div>
+      <div id="segmentList" class="segment-list">
+        <div class="empty-note">Load a capture and run detection to see segments.</div>
+      </div>
+      <div class="kbd-hint">
+        Space play · ←/→ step frame (Shift = 1s) · S split · M merge · I/O set in-out · K keep⁄cut · drag timeline boundaries
+      </div>
+    </section>
+  </main>
+
+  <!-- Progress overlay -->
+  <div id="overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <div id="overlayTitle" class="overlay-title">Working…</div>
+      <div class="bar"><div id="overlayBar" class="bar-fill"></div></div>
+      <div id="overlayStatus" class="overlay-status"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="tooltip" class="tooltip hidden"></div>
+
+  <!-- Settings modal -->
+  <div id="settingsModal" class="help-modal hidden">
+    <div class="help-card settings-card">
+      <div class="help-head">
+        <div class="help-title">⚙ Settings</div>
+        <button id="settingsClose" class="help-close" title="Close">✕</button>
+      </div>
+      <div class="help-body">
+        <h3>Preview proxy</h3>
+        <p>On import, a small low-res copy is built so scrubbing stays fast. Detection and export always use your full-quality original.</p>
+        <label class="switch"><input id="setProxyEnabled" type="checkbox" /> <span>Build preview proxies automatically</span></label>
+        <div class="field" style="margin-top:12px">
+          <label>Cache limit <output id="setCapOut">8 GB</output></label>
+          <input id="setCap" type="range" min="1" max="50" step="1" value="8" />
+          <small>Older previews are deleted automatically once the cache passes this size.</small>
+        </div>
+        <div class="settings-row">
+          <span id="cacheSizeLabel" class="muted">Cache: —</span>
+          <button id="clearCacheBtn" class="btn btn-small">Clear preview cache</button>
+        </div>
+
+        <h3>Encoder</h3>
+        <p>Used for exports, preview building, and GPU-accelerated detection. Hardware encoders are much faster but need a compatible GPU — CPU always works, and the app falls back to CPU automatically if a GPU path fails. Use “Test” to check yours.</p>
+        <div class="field">
+          <label>Encoder</label>
+          <select id="setEncoder">
+            <option value="cpu">CPU — x264 (always works)</option>
+            <option value="nvenc">NVIDIA GPU — NVENC</option>
+            <option value="qsv">Intel GPU — Quick Sync</option>
+            <option value="amf">AMD GPU — AMF</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <span id="encoderStatus" class="muted"></span>
+          <button id="testEncoderBtn" class="btn btn-small">Test encoder</button>
+        </div>
+      </div>
+      <div class="help-foot">
+        <button id="settingsDone" class="btn btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guide / help modal -->
+  <div id="helpModal" class="help-modal hidden">
+    <div class="help-card">
+      <div class="help-head">
+        <div class="help-title">90s Craig Edit Booth — Guide</div>
+        <button id="helpClose" class="help-close" title="Close">✕</button>
+      </div>
+      <div class="help-body">
+        <p class="lead">VHS Editor finds the commercials in a digitized tape, lets you fix up the picture and sound, and exports either a <b>clean commercial-free copy</b> or the <b>commercials themselves as vertical clips</b> for TikTok / Reels.</p>
+
+        <h3>Quick start</h3>
+        <ol>
+          <li><b>Open a capture</b> — click <em>Open capture…</em> (top-right) or drag a video onto the player. A small preview builds in the background so scrubbing is fast — watch the badge at the top-left of the video. Detection and export always use your full-quality original, never the preview.</li>
+          <li><b>Detect commercials</b> — click <em>Detect commercials</em>. It scans for fade-to-black + audio silence (the marks between show and ads) and splits the tape into clips.</li>
+          <li><b>Review</b> — clips appear on the timeline and in the list, colored <span class="k">green = keep</span> / <span class="c">red = cut</span>. Click one to play it, and fix any mistakes (see <em>Editing</em>).</li>
+          <li><b>Pick a preset</b> — in Export, click <em>📺 Clean tape</em> or <em>🎬 Social clips</em>.</li>
+          <li><b>Export</b> — choose an output folder if you like, then <em>Export</em>. Files save next to your source by default.</li>
+        </ol>
+
+        <h3>The two jobs</h3>
+        <ul>
+          <li><b>📺 Clean tape</b> — exports the kept <b>program</b> as one merged file, commercials removed.</li>
+          <li><b>🎬 Social clips</b> — exports the cut <b>commercials</b>, reframed to vertical 9:16 with a blurred background, as separate ready-to-post files.</li>
+        </ul>
+
+        <h3>Editing clips</h3>
+        <p>Detection gets you most of the way; fine-tune the rest:</p>
+        <ul>
+          <li><b>Click</b> a clip to select and preview it. Click its keep/cut tag (or press <kbd>K</kbd>) to flip it.</li>
+          <li><b>Drag</b> the yellow boundary handles on the timeline to move where a clip starts/ends.</li>
+          <li><kbd>S</kbd> <b>split</b> the selected clip at the playhead · <kbd>M</kbd> / <kbd>Shift</kbd>+<kbd>M</kbd> <b>merge</b> with the previous/next clip.</li>
+          <li><kbd>I</kbd> / <kbd>O</kbd> snap the selected clip's <b>in / out</b> point to the playhead.</li>
+        </ul>
+
+        <h3>Detect settings</h3>
+        <ul>
+          <li><b>Black sensitivity</b> — how dark a frame must be to count as a break. Raise it if breaks are missed.</li>
+          <li><b>Silence threshold</b> — how quiet the audio must drop at a break.</li>
+          <li><b>Min commercial gap</b> — ignores tiny gaps (noise).</li>
+          <li><b>Max commercial length</b> — clips shorter than this are guessed to be commercials.</li>
+        </ul>
+
+        <h3>Restore (optional)</h3>
+        <ul>
+          <li><b>Enhance</b> — denoise + re-sharpen by tape speed (SP / LP / EP). Use heavier presets for older, noisier tapes.</li>
+          <li><b>Correct color</b> — brightness, contrast, saturation, gamma, plus Red/Green/Blue balance to remove color casts.</li>
+          <li><b>Audio drift</b> — shift the audio to fix lip-sync (positive = audio later).</li>
+        </ul>
+
+        <h3>Export settings</h3>
+        <ul>
+          <li><b>What to export</b> — kept program, or the cut commercials.</li>
+          <li><b>Frame / Fill</b> — keep source shape or reframe for social; Fill handles the leftover space (blurred background looks best).</li>
+          <li><b>Resolution · Frame rate · Quality</b> — output size and encoding (Archive → Low).</li>
+          <li><b>Export as</b> — a custom filename. <b>One merged file</b> vs <b>Separate clips</b>.</li>
+        </ul>
+
+        <h3>Keyboard</h3>
+        <p class="keys">
+          <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> step frame (<kbd>Shift</kbd> = 1&nbsp;sec) · <kbd>Home</kbd>/<kbd>End</kbd> · <kbd>S</kbd> split · <kbd>M</kbd> merge · <kbd>I</kbd>/<kbd>O</kbd> set in-out · <kbd>K</kbd> keep/cut
+        </p>
+        <p class="tip-note">Tip: hover the <span class="info" style="pointer-events:none">i</span> icons around the app for quick explanations of each control.</p>
+      </div>
+      <div class="help-foot">
+        <button id="helpDone" class="btn btn-primary">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
