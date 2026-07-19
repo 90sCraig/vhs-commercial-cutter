@@ -592,6 +592,7 @@ function syncFrameFields() {
 
 const FRAME_LABELS = {
   source: 'source frame',
+  '4:3': 'standard 4:3 (1440×1080)',
   '9:16': 'vertical 9:16 (1080×1920)',
   '4:5': 'portrait 4:5 (1080×1350)',
   '1:1': 'square 1:1 (1080×1080)',
@@ -640,6 +641,7 @@ async function runExport() {
     quality: exportQuality(),
     fps: exportFps(),
     audioDriftMs: parseInt($('audioDrift').value, 10),
+    normalizeAudio: $('normalizeAudio').checked,
     outputDir,
     baseName: exportBaseName(),
   };

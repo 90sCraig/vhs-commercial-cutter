@@ -11,6 +11,7 @@ function pad(n, w = 2) { return String(n).padStart(w, '0'); }
 
 // Target output dimensions for each social frame (source = no reframing).
 const FRAMES = {
+  '4:3': [1440, 1080],  // classic TV / VHS shape (YouTube)
   '9:16': [1080, 1920], // Reels / TikTok
   '4:5': [1080, 1350],  // Instagram portrait
   '1:1': [1080, 1080],  // Square
@@ -106,11 +107,20 @@ function audioFilter(driftMs) {
   return `atrim=start=${s},asetpts=PTS-STARTPTS`;                 // audio earlier
 }
 
+// Full audio filter chain: drift + optional YouTube loudness normalization.
+function audioChain(driftMs, normalize) {
+  const parts = [];
+  const drift = audioFilter(driftMs);
+  if (drift) parts.push(drift);
+  if (normalize) parts.push('loudnorm=I=-14:TP=-1.5:LRA=11'); // YouTube target
+  return parts.join(',');
+}
+
 // Encode a single [start,start+duration) slice, re-encoding so arbitrary cut
 // points are frame-accurate (VHS captures rarely have clean keyframes at cuts).
-// opts: { correction, enhance, layout, quality, fps, audioDriftMs, encoder }
+// opts: { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio }
 function encodeSegment(input, start, duration, outPath, opts, onProgress) {
-  const { correction, enhance, layout, quality, fps, audioDriftMs, encoder } = opts;
+  const { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio } = opts;
   const args = ['-hide_banner', '-y', '-ss', String(start), '-i', input, '-t', String(duration)];
   const f = buildVideoFilter(correction, enhance, layout);
   if (f.complex) {
@@ -118,7 +128,7 @@ function encodeSegment(input, start, duration, outPath, opts, onProgress) {
   } else if (f.vf) {
     args.push('-vf', f.vf);
   }
-  const af = audioFilter(audioDriftMs);
+  const af = audioChain(audioDriftMs, normalizeAudio);
   if (af) args.push('-af', af);
   const crf = QUALITY[quality] != null ? QUALITY[quality] : 18;
   if (fps && fps !== 'source') args.push('-r', String(fps));
@@ -152,8 +162,8 @@ function concatParts(parts, outPath) {
 // mode: 'merged' | 'split'
 // target: 'save' (the clips you're keeping — commercials by default) | 'skip' (the rest)
 // layout: { frame: 'source'|'9:16'|'4:5'|'1:1', fill: 'blur'|'bars'|'crop' }
-async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', fps = 'source', audioDriftMs = 0, encoder = 'cpu', outputDir, baseName }, hooks = {}) {
-  const encodeOpts = { correction, enhance, layout, quality, fps, audioDriftMs, encoder };
+async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', fps = 'source', audioDriftMs = 0, encoder = 'cpu', normalizeAudio = false, outputDir, baseName }, hooks = {}) {
+  const encodeOpts = { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio };
   const chosen = segments
     .filter((s) => (target === 'skip' ? !s.keep : s.keep))
     .sort((a, b) => a.start - b.start);

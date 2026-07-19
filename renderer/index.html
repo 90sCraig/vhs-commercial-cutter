@@ -195,6 +195,11 @@
             <input id="audioDrift" type="range" min="-500" max="500" step="10" value="0" />
             <small>Shift audio to fix lip-sync. Positive = audio later.</small>
           </div>
+          <label class="switch" style="margin-top:6px">
+            <input id="normalizeAudio" type="checkbox" />
+            <span>Normalize loudness for YouTube (−14 LUFS)</span>
+          </label>
+          <small class="switch-note">Evens out quiet/loud commercials to a consistent volume.</small>
         </div>
 
         <div class="card">
@@ -213,9 +218,10 @@
             </select>
           </div>
           <div class="field">
-            <label>Frame <span class="info" tabindex="0" data-help="Keep the original shape, or reframe for social: 9:16 vertical for TikTok/Reels, 4:5 for Instagram, 1:1 square. Reframing shows a Fill option for the leftover space.">i</span></label>
+            <label>Frame <span class="info" tabindex="0" data-help="Keep the original shape, or reframe: 4:3 for the classic TV/YouTube look, 9:16 vertical for TikTok/Reels, 4:5 for Instagram, 1:1 square. Reframing shows a Fill option for the leftover space.">i</span></label>
             <select id="exportFrame">
               <option value="source">Source (as captured)</option>
+              <option value="4:3">Standard 4:3 — 1440×1080 · YouTube/TV</option>
               <option value="9:16">Vertical 9:16 — 1080×1920 · Reels/TikTok</option>
               <option value="4:5">Portrait 4:5 — 1080×1350 · Instagram</option>
               <option value="1:1">Square 1:1 — 1080×1080</option>
