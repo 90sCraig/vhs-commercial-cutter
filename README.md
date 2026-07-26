@@ -4,7 +4,7 @@
 
 # VHS Commercial Cutter
 
-**Cut the commercials out of your digitized VHS tapes. Keep the show as one clean file, or save the ads as separate clips.**
+**Find the commercials in your digitized VHS tapes and save them as clips. Or flip it and keep the show instead, with the ads stripped out.**
 
 ![Windows](https://img.shields.io/badge/Windows-x64-2b3136?logo=windows&logoColor=5fce8c)
 ![Built with Electron](https://img.shields.io/badge/Electron-33-2b3136?logo=electron&logoColor=5fce8c)
@@ -19,12 +19,12 @@
 
 ## What it does
 
-You digitize a stack of old tapes and end up with hours of footage that's half show, half commercials. This finds the commercials for you.
+You digitize a stack of old tapes and end up with hours of footage that's half show, half commercials. The ads are the part worth digging out, and they're the part nobody has archived. This finds them for you.
 
 It looks for the fade-to-black and the dead-air that sit between the program and the ads, cuts the tape into clips at those spots, and then hands you the wheel:
 
-- 📺 **Keep the show.** Export the program with the commercials pulled out, as one file.
-- 🎬 **Keep the commercials.** Those old ads are half the reason to save a tape. Get them out as separate clips, one per ad.
+- 🎬 **Save the commercials.** The main job. Those old ads are half the reason to keep a tape, and they come out as separate clips, one per ad.
+- 📺 **Or keep the show.** The reverse: the program as one file, commercials removed.
 
 It's not a full video editor and doesn't pretend to be. Load a tape, check the cuts, export.
 
@@ -42,7 +42,7 @@ One tape, every ad break pulled out and exported as a single file:
 
 ## What it isn't
 
-This is the last step, not the whole pipeline. It assumes your capture is already finished. It won't deinterlace, fix field order, or straighten a stretched aspect ratio — no capture-side work at all. Everyone's chain is different, and a wrong guess at that stage bakes into the file for good. Use the tools built for it.
+This is the last step, not the whole pipeline. It assumes your capture is already finished. It won't deinterlace, fix field order, or straighten a stretched aspect ratio. No capture-side work at all. Everyone's chain is different, and a wrong guess at that stage bakes into the file for good. Use the tools built for it.
 
 It handles the light stuff at the end: denoise and sharpen a little, nudge the color, even out the volume. Final polish, not technical video work.
 
@@ -68,8 +68,8 @@ So expect rough edges. There are almost certainly bugs I haven't hit yet. I'll f
 
 Grab the latest [release](https://github.com/90sCraig/vhs-commercial-cutter/releases/latest):
 
-- **`…-Setup-<ver>.exe`** — the installer. Adds a Start-menu shortcut and an uninstaller.
-- **`…-Portable-<ver>.exe`** — one exe, no install.
+- **`…-Setup-<ver>.exe`** is the installer. Adds a Start-menu shortcut and an uninstaller.
+- **`…-Portable-<ver>.exe`** is one exe, no install.
 
 > It's not code-signed, so the first time you run it Windows SmartScreen throws an "unknown publisher" warning. Click **More info → Run anyway**. Windows x64 only.
 
@@ -87,7 +87,7 @@ Grab the latest [release](https://github.com/90sCraig/vhs-commercial-cutter/rele
 
 <sub>The **Guide** walks through all of this.</sub>
 
-<img src="docs/screenshots/settings.png" alt="Settings — proxy cache, encoder, updates" width="820" />
+<img src="docs/screenshots/settings.png" alt="Settings: proxy cache, encoder, updates" width="820" />
 
 <sub>**Settings** handles the proxy cache, the CPU/GPU encoder, and updates.</sub>
 
@@ -97,11 +97,11 @@ Grab the latest [release](https://github.com/90sCraig/vhs-commercial-cutter/rele
 
 I'm a VHS archivist in Columbus, Ohio. I find old tapes, digitize them live on stream, and archive whatever turns up. I built this because cutting the commercials out by hand got old.
 
-- 🌐 **Site** — [90scraig.com](https://90scraig.com)
-- ▶️ **YouTube** — [@90sCraig](https://www.youtube.com/@90sCraig)
-- 📸 **Instagram** — [@90s_craig](https://www.instagram.com/90s_craig/)
-- 🟣 **Twitch** — [90s_craig](https://www.twitch.tv/90s_craig)
-- 🦋 **Bluesky** — [@90scraig.com](https://bsky.app/profile/90scraig.com)
+- 🌐 **Site**: [90scraig.com](https://90scraig.com)
+- ▶️ **YouTube**: [@90sCraig](https://www.youtube.com/@90sCraig)
+- 📸 **Instagram**: [@90s_craig](https://www.instagram.com/90s_craig/)
+- 🟣 **Twitch**: [90s_craig](https://www.twitch.tv/90s_craig)
+- 🦋 **Bluesky**: [@90scraig.com](https://bsky.app/profile/90scraig.com)
 
 ## Building from source
 
