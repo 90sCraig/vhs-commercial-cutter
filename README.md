@@ -82,12 +82,16 @@ Grab the latest [release](https://github.com/90sCraig/vhs-commercial-cutter/rele
 5. **Export.** Choose a folder and go. It always cuts from your original file at full quality; the proxy is only there to keep things quick while you work.
 
 <div align="center">
-<img src="docs/screenshots/guide.png" alt="In-app guide" width="440" />
-&nbsp;&nbsp;
-<img src="docs/screenshots/settings.png" alt="Settings — proxy cache, encoder, updates" width="440" />
-</div>
 
-<sub>The **Guide** on the left walks through all of this. **Settings** on the right handles the proxy cache, the CPU/GPU encoder, and updates.</sub>
+<img src="docs/screenshots/guide.png" alt="In-app guide" width="820" />
+
+<sub>The **Guide** walks through all of this.</sub>
+
+<img src="docs/screenshots/settings.png" alt="Settings — proxy cache, encoder, updates" width="820" />
+
+<sub>**Settings** handles the proxy cache, the CPU/GPU encoder, and updates.</sub>
+
+</div>
 
 ## Made by 90s Craig
 
