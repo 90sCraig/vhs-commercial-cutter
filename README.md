@@ -35,7 +35,8 @@ It's not a full video editor and doesn't pretend to be. Load a tape, check the c
 - **Scrubs fast on huge files.** It builds a small proxy in the background so a giant MKV or a capture sitting on your network still plays smooth. The proxy cache is yours to control.
 - **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation, and gamma, fix the RGB balance, and pull the audio back in sync when it drifts.
 - **Exports how you want.** Keep the source shape or reframe to vertical, portrait, or square. Pick your quality, resolution, and frame rate, name the files yourself, or just hit the **Clean tape** or **Social clips** preset and go.
-- **Uses your GPU if you've got one.** NVIDIA, Intel, or AMD for encode and decode, on export, previews, and detection. Falls back to the CPU (x264) on its own when the hardware path isn't there.
+- **Uses your GPU if you've got one.** NVIDIA, Intel, or AMD for encode and decode, on export, previews, and detection. Falls back to the CPU (x264) on its own when the hardware path isn't there, or if it gives out partway through a job.
+- **Safe to walk away from.** A long export keeps the machine awake, works next to your output folder instead of quietly filling the Windows drive, and tells you up front if there isn't room rather than dying an hour in.
 - **Nothing else to install.** FFmpeg ships inside the app.
 - **Updates when you say so.** It tells you a new version is out and then waits. Nothing installs behind your back.
 
