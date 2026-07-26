@@ -4,7 +4,7 @@
 
 # VHS Commercial Cutter
 
-**Cut the commercials out of your digitized VHS tapes. Keep the show as one clean file, or turn the ads into vertical clips for TikTok and Reels.**
+**Cut the commercials out of your digitized VHS tapes. Keep the show as one clean file, or save the ads as separate clips.**
 
 ![Windows](https://img.shields.io/badge/Windows-x64-2b3136?logo=windows&logoColor=5fce8c)
 ![Built with Electron](https://img.shields.io/badge/Electron-33-2b3136?logo=electron&logoColor=5fce8c)
@@ -24,7 +24,7 @@ You digitize a stack of old tapes and end up with hours of footage that's half s
 It looks for the fade-to-black and the dead-air that sit between the program and the ads, cuts the tape into clips at those spots, and then hands you the wheel:
 
 - 📺 **Keep the show.** Export the program with the commercials pulled out, as one file.
-- 🎬 **Keep the commercials.** Those old ads are half the reason to save a tape. Reframe them to vertical 9:16 with a blurred background and post them.
+- 🎬 **Keep the commercials.** Those old ads are half the reason to save a tape. Get them out as separate clips, one per ad.
 
 It's not a full video editor and doesn't pretend to be. Load a tape, check the cuts, export.
 
@@ -44,7 +44,7 @@ One tape, every ad break pulled out and exported as a single file:
 
 This is the last step, not the whole pipeline. It assumes your capture is already finished. It won't deinterlace, fix field order, or straighten a stretched aspect ratio — no capture-side work at all. Everyone's chain is different, and a wrong guess at that stage bakes into the file for good. Use the tools built for it.
 
-It handles the light stuff at the end: denoise and sharpen a little, nudge the color, even out the volume, reframe for social if that's what you're making. Final polish, not technical video work.
+It handles the light stuff at the end: denoise and sharpen a little, nudge the color, even out the volume. Final polish, not technical video work.
 
 ## Fair warning
 
@@ -58,7 +58,7 @@ So expect rough edges. There are almost certainly bugs I haven't hit yet. I'll f
 - **A timeline you can actually work in.** Zoom in, drag the cut points, split and merge clips, set in and out, step through frame by frame from the keyboard. There's a minimap for the wide view.
 - **Scrubs fast on huge files.** It builds a small proxy in the background so a giant MKV or a capture sitting on your network still plays smooth. The proxy cache is yours to control.
 - **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation, and gamma, fix the RGB balance, and pull the audio back in sync when it drifts.
-- **Exports how you want.** Keep the source shape or reframe to vertical, portrait, or square. Pick your quality, resolution, and frame rate, name the files yourself, or just hit the **Clean tape** or **Social clips** preset and go.
+- **Exports how you want.** Keep the source shape or reframe to 4:3 for YouTube. Pick your quality, resolution, and frame rate, name the files yourself, or just hit the **Commercial clips** or **Keep the show** preset and go.
 - **Uses your GPU if you've got one.** NVIDIA, Intel, or AMD for encode and decode, on export, previews, and detection. Falls back to the CPU (x264) on its own when the hardware path isn't there, or if it gives out partway through a job.
 - **Safe to walk away from.** A long export keeps the machine awake, works next to your output folder instead of quietly filling the Windows drive, and tells you up front if there isn't room rather than dying an hour in.
 - **Nothing else to install.** FFmpeg ships inside the app.
@@ -78,7 +78,7 @@ Grab the latest [release](https://github.com/90sCraig/vhs-commercial-cutter/rele
 1. **Open a tape.** Click *Open capture…* or drag a video onto the player. MP4, MKV, AVI, MOV, and most other things.
 2. **Detect the commercials.** Hit *Detect commercials*. Clips show up on the timeline, **green to keep**, **red to cut**.
 3. **Check its work.** Click a clip to play it. Flip keep/cut with a click or `K`. Drag the yellow edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
-4. **Pick what you're making.** **📺 Clean tape** or **🎬 Social clips**.
+4. **Pick what you're making.** **🎬 Commercial clips** or **📺 Keep the show**.
 5. **Export.** Choose a folder and go. It always cuts from your original file at full quality; the proxy is only there to keep things quick while you work.
 
 <div align="center">

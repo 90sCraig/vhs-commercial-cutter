@@ -207,10 +207,10 @@
 
         <div class="card">
           <div class="card-title">3 · Export
-            <span class="info" tabindex="0" data-help="Render your result. Use a preset for the two common jobs, or set options by hand. 'Program' exports the show with commercials removed; 'Commercials' exports the ads (great reframed vertical for TikTok/Reels). Export always uses the full-quality source.">i</span>
+            <span class="info" tabindex="0" data-help="Render your result. Use a preset for the two common jobs, or set options by hand. 'Program' exports the show with commercials removed; 'Commercials' exports the ads. Export always uses the full-quality source.">i</span>
           </div>
           <div class="preset-row">
-            <button id="presetSocial" class="chip" title="Saved commercials → vertical 9:16, blurred background, separate clips">🎬 Commercial clips</button>
+            <button id="presetSocial" class="chip" title="Saved commercials → separate clips, source frame">🎬 Commercial clips</button>
             <button id="presetClean" class="chip" title="The show → source frame, one merged file">📺 Keep the show</button>
           </div>
           <div class="field">
@@ -221,17 +221,14 @@
             </select>
           </div>
           <div class="field">
-            <label>Frame <span class="info" tabindex="0" data-help="Keep the original shape, or reframe: 4:3 for the classic TV/YouTube look, 9:16 vertical for TikTok/Reels, 4:5 for Instagram, 1:1 square. Reframing shows a Fill option for the leftover space.">i</span></label>
+            <label>Frame <span class="info" tabindex="0" data-help="Keep the original shape, or reframe to 4:3 for the classic TV/YouTube look. Reframing shows a Fill option for any leftover space.">i</span></label>
             <select id="exportFrame">
               <option value="source">Source (as captured)</option>
               <option value="4:3">Standard 4:3 — 1440×1080 · YouTube/TV</option>
-              <option value="9:16">Vertical 9:16 — 1080×1920 · Reels/TikTok</option>
-              <option value="4:5">Portrait 4:5 — 1080×1350 · Instagram</option>
-              <option value="1:1">Square 1:1 — 1080×1080</option>
             </select>
           </div>
           <div class="field" id="fillField" style="display:none">
-            <label>Fill empty space <span class="info" tabindex="0" data-help="A 4:3 tape doesn't fill a tall 9:16 frame. Blurred background (recommended) puts a soft zoomed copy behind the clip. Black bars leaves plain bars. Crop to fill zooms in edge-to-edge, losing the sides.">i</span></label>
+            <label>Fill empty space <span class="info" tabindex="0" data-help="If the source shape doesn't match the target frame, something has to fill the gap. Blurred background (recommended) puts a soft zoomed copy behind the clip. Black bars leaves plain bars. Crop to fill zooms in edge-to-edge, losing the sides.">i</span></label>
             <select id="exportFill">
               <option value="blur">Blurred background (recommended)</option>
               <option value="bars">Black bars</option>
@@ -399,7 +396,7 @@
         <button id="helpClose" class="help-close" title="Close">✕</button>
       </div>
       <div class="help-body">
-        <p class="lead">VHS Commercial Cutter finds the <b>commercials</b> in a digitized VHS tape so you can <b>save them as clips</b> — reframed vertical for TikTok / Reels. It can also do the reverse and keep just the show.</p>
+        <p class="lead">VHS Commercial Cutter finds the <b>commercials</b> in a digitized VHS tape so you can <b>save them as clips</b>. It can also do the reverse and keep just the show.</p>
 
         <h3>Quick start</h3>
         <ol>
@@ -412,7 +409,7 @@
 
         <h3>The two jobs</h3>
         <ul>
-          <li><b>🎬 Commercial clips</b> — the main event: exports your <b>saved commercials</b>, reframed to vertical 9:16 with a blurred background, as separate ready-to-post files.</li>
+          <li><b>🎬 Commercial clips</b> — the main event: exports your <b>saved commercials</b> as separate files, one per ad.</li>
           <li><b>📺 Keep the show</b> — the reverse: exports the <b>skipped</b> program as one merged file, commercials removed.</li>
         </ul>
 
@@ -444,7 +441,7 @@
         <h3>Export settings</h3>
         <ul>
           <li><b>What to export</b> — the saved commercials, or the skipped show.</li>
-          <li><b>Frame / Fill</b> — keep source shape or reframe for social; Fill handles the leftover space (blurred background looks best).</li>
+          <li><b>Frame / Fill</b> — keep the source shape or reframe to 4:3; Fill handles any leftover space (blurred background looks best).</li>
           <li><b>Resolution · Frame rate · Quality</b> — output size and encoding (Archive → Low).</li>
           <li><b>Export as</b> — a custom filename. <b>One merged file</b> vs <b>Separate clips</b>.</li>
         </ul>

@@ -1,6 +1,6 @@
 // Export: render the chosen segments (the saved commercials, or the skipped
 // show) either merged into one file or split into one file per segment.
-// Optionally reframe to a vertical/portrait/square social format + color fix.
+// Optionally reframe to 4:3 and apply color / restoration fixes.
 
 const fs = require('fs');
 const path = require('path');
@@ -9,12 +9,9 @@ const { videoCodecArgs } = require('./encoders');
 
 function pad(n, w = 2) { return String(n).padStart(w, '0'); }
 
-// Target output dimensions for each social frame (source = no reframing).
+// Target output dimensions for each reframe option (source = no reframing).
 const FRAMES = {
   '4:3': [1440, 1080],  // classic TV / VHS shape (YouTube)
-  '9:16': [1080, 1920], // Reels / TikTok
-  '4:5': [1080, 1350],  // Instagram portrait
-  '1:1': [1080, 1080],  // Square
 };
 
 // Quality presets → x264 CRF (lower = better/bigger).
@@ -90,7 +87,8 @@ function buildVideoFilter(correction, enhance, layout) {
       `crop=${W}:${H},setsar=1` };
   }
   // Blurred background: a zoomed, blurred copy fills the frame; the fitted
-  // clip is overlaid centered on top. The classic vertical-social look.
+  // clip is overlaid centered on top. Only bites when the source aspect does
+  // not match the target frame.
   const complex =
     `[0:v]${prep}split=2[b][f];` +
     `[b]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},gblur=sigma=20[bb];` +
@@ -214,7 +212,7 @@ async function estimateBytes(input, exportSeconds, mode) {
 
 // mode: 'merged' | 'split'
 // target: 'save' (the clips you're keeping — commercials by default) | 'skip' (the rest)
-// layout: { frame: 'source'|'9:16'|'4:5'|'1:1', fill: 'blur'|'bars'|'crop' }
+// layout: { frame: 'source'|'4:3', fill: 'blur'|'bars'|'crop' }
 async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', fps = 'source', audioDriftMs = 0, encoder = 'cpu', normalizeAudio = false, outputDir, baseName }, hooks = {}) {
   const encodeOpts = { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio };
   // Downgraded to CPU for the remainder once a hardware encode has failed.

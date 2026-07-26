@@ -643,8 +643,7 @@ function applyPreset(name) {
   const setMode = (v) => { document.querySelector(`input[name=mode][value=${v}]`).checked = true; };
   if (name === 'social') {
     $('exportTarget').value = 'save';
-    $('exportFrame').value = '9:16';
-    $('exportFill').value = 'blur';
+    $('exportFrame').value = 'source';
     setMode('split');
   } else if (name === 'clean') {
     $('exportTarget').value = 'skip';
@@ -680,9 +679,6 @@ function syncFrameFields() {
 const FRAME_LABELS = {
   source: 'source frame',
   '4:3': 'standard 4:3 (1440×1080)',
-  '9:16': 'vertical 9:16 (1080×1920)',
-  '4:5': 'portrait 4:5 (1080×1350)',
-  '1:1': 'square 1:1 (1080×1080)',
 };
 
 function updateExportSummary() {
