@@ -179,8 +179,12 @@ async function runSample() {
   }
 }
 
+// The job runs in the main process, so IPC wraps its error — match the message.
+function isAbort(e) { return /Cancelled/i.test((e && e.message) || ''); }
+
 async function runDetect() {
   if (!state.filePath) return;
+  $('player').pause();  // playback competes with the scan for disk and decode
   state.sampleBoundaries = []; state.sampleRange = null; // clear sample overlay
   showOverlay('Detecting commercials…', 'Scanning for black + silence boundaries');
   setBar(0);
@@ -198,7 +202,8 @@ async function runDetect() {
     $('exportBtn').disabled = false;
     toast(`Found ${saved} commercial${saved === 1 ? '' : 's'} to save (${res.segments.length} segments).`);
   } catch (e) {
-    toast('Detection failed: ' + e.message, true);
+    if (isAbort(e)) toast('Detection aborted.');
+    else toast('Detection failed: ' + e.message, true);
   } finally {
     hideOverlay();
   }
@@ -727,6 +732,7 @@ async function runExport() {
     outputDir,
     baseName: exportBaseName(),
   };
+  $('player').pause();  // playback competes with the encode for disk and decode
   showOverlay('Exporting…', 'Preparing');
   setBar(0);
   try {
@@ -736,7 +742,8 @@ async function runExport() {
     if (res.outputs[0]) window.api.showItem(res.outputs[0]);
   } catch (e) {
     hideOverlay();
-    toast('Export failed: ' + e.message, true);
+    if (isAbort(e)) toast('Export aborted. Finished clips were kept.');
+    else toast('Export failed: ' + e.message, true);
   }
 }
 
@@ -744,6 +751,9 @@ async function runExport() {
 function showOverlay(title, status) {
   $('overlayTitle').textContent = title;
   $('overlayStatus').textContent = status || '';
+  const abort = $('overlayAbort');
+  abort.disabled = false;
+  abort.textContent = 'Abort';
   $('overlay').classList.remove('hidden');
 }
 function hideOverlay() { $('overlay').classList.add('hidden'); }
@@ -918,6 +928,12 @@ function init() {
     if (f) loadFile(f);
   });
   $('detectBtn').addEventListener('click', runDetect);
+  $('overlayAbort').addEventListener('click', async () => {
+    const b = $('overlayAbort');
+    b.disabled = true;                 // killing is quick, but do not queue clicks
+    b.textContent = 'Stopping…';
+    try { await window.api.abortJob(); } catch (_) { /* job already finished */ }
+  });
   $('sampleBtn').addEventListener('click', runSample);
   $('exportBtn').addEventListener('click', runExport);
   $('previewSampleBtn').addEventListener('click', renderSamplePreview);

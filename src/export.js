@@ -151,6 +151,11 @@ async function encodeWithFallback(input, start, duration, outPath, opts, onProgr
     await encodeSegment(input, start, duration, outPath, opts, onProgress);
     return false;
   } catch (e) {
+    // Aborted: bin the truncated file, but do not retry on the CPU.
+    if (e.cancelled) {
+      try { fs.unlinkSync(outPath); } catch (_) { /* nothing written yet */ }
+      throw e;
+    }
     if (opts.encoder === 'cpu') throw e;   // nothing left to fall back to
     try { fs.unlinkSync(outPath); } catch (_) { /* nothing written yet */ }
     hooks.onFallback && hooks.onFallback(opts.encoder, e);

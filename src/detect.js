@@ -133,6 +133,7 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
   try {
     await runPass(opts.hwaccel || null);
   } catch (e) {
+    if (e.cancelled) throw e;                  // aborted — do not restart on CPU
     if (opts.hwaccel) { await runPass(null); } // fall back to CPU decode
     else throw e;
   }

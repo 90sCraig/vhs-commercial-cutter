@@ -89,10 +89,39 @@ function parseFrameRate(str) {
   return n / d;
 }
 
+// --- job cancellation --------------------------------------------------
+// Only one long job (a detection scan or an export) runs at a time, so a
+// single flag plus a registry of live processes covers it. Cancelling kills
+// whatever is running and makes any later spawn fail immediately, so a
+// multi-step job stops instead of starting its next step.
+const live = new Set();
+let cancelled = false;
+
+class CancelledError extends Error {
+  constructor() {
+    super('Cancelled');
+    this.name = 'CancelledError';
+    this.cancelled = true;
+  }
+}
+
+function beginJob() { cancelled = false; }
+function isCancelled() { return cancelled; }
+function cancelJob() {
+  cancelled = true;
+  for (const p of live) {
+    try { p.kill(); } catch (_) { /* already gone */ }
+  }
+  live.clear();
+  return true;
+}
+
 // Spawns ffmpeg, streaming stderr lines to onLine. Resolves on success.
 function runFfmpeg(args, { onLine, onProgress } = {}) {
   return new Promise((resolve, reject) => {
+    if (cancelled) return reject(new CancelledError());
     const proc = spawn(FFMPEG, args);
+    live.add(proc);
     let tail = '';
     let stderrAll = '';
     proc.stderr.on('data', (chunk) => {
@@ -113,13 +142,20 @@ function runFfmpeg(args, { onLine, onProgress } = {}) {
         }
       }
     });
-    proc.on('error', reject);
+    proc.on('error', (e) => { live.delete(proc); reject(e); });
     proc.on('close', (code) => {
+      live.delete(proc);
       if (tail && onLine) onLine(tail);
+      // A killed process reports a non-zero code; report it as a cancellation
+      // rather than a failure so callers can tell the two apart.
+      if (cancelled) return reject(new CancelledError());
       if (code === 0) resolve();
       else reject(new Error(`ffmpeg exited ${code}\n${stderrAll.slice(-2000)}`));
     });
   });
 }
 
-module.exports = { FFMPEG, FFPROBE, ffprobeInfo, runFfmpeg, tmpDir: os.tmpdir() };
+module.exports = {
+  FFMPEG, FFPROBE, ffprobeInfo, runFfmpeg, tmpDir: os.tmpdir(),
+  beginJob, cancelJob, isCancelled, CancelledError,
+};

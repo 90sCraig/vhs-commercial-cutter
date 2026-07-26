@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, powerSaveBlocker } = require('electron');
 const path = require('path');
-const { ffprobeInfo, FFMPEG, FFPROBE } = require('./src/ffmpeg');
+const { ffprobeInfo, FFMPEG, FFPROBE, beginJob, cancelJob } = require('./src/ffmpeg');
 const { detect, detectSample } = require('./src/detect');
 const { exportVideo, renderPreview } = require('./src/export');
 const os = require('os');
@@ -88,6 +88,7 @@ ipcMain.handle('video:probe', async (_e, filePath) => {
 
 ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
   opts.hwaccel = decodeAccel(settings.load().encoder); // GPU-accelerated decode
+  beginJob();
   return keepAwake(() => detect(filePath, opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
   }));
@@ -109,6 +110,7 @@ ipcMain.handle('preview:render', async (_e, payload) => {
 
 ipcMain.handle('export:run', async (_e, payload) => {
   payload.encoder = settings.load().encoder || 'cpu'; // single source of truth
+  beginJob();
   return keepAwake(() => exportVideo(payload, {
     onProgress: (p) => win.webContents.send('export:progress', p),
     onStatus: (s) => win.webContents.send('export:status', s),
@@ -116,6 +118,10 @@ ipcMain.handle('export:run', async (_e, payload) => {
       `${String(enc).toUpperCase()} encoding failed — finishing on the CPU.`),
   }));
 });
+
+// Kills whatever ffmpeg is running and blocks the job from starting its next
+// step. Safe to call when nothing is running.
+ipcMain.handle('job:abort', () => cancelJob());
 
 ipcMain.handle('proxy:ensure', async (_e, { filePath, duration }) => {
   const s = settings.load();
