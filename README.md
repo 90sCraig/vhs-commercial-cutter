@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/icon.png" width="128" alt="90s Craig Edit Booth" />
+<img src="docs/icon.png" width="128" alt="VHS Commercial Cutter" />
 
-# 90s Craig Edit Booth
+# VHS Commercial Cutter
 
 **Cut the commercials out of your digitized VHS tapes. Keep the show as one clean file, or turn the ads into vertical clips for TikTok and Reels.**
 
@@ -11,7 +11,7 @@
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-bundled-2b3136?logo=ffmpeg&logoColor=5fce8c)
 ![License](https://img.shields.io/badge/license-MIT-2b3136)
 
-<img src="docs/screenshots/hero.png" alt="90s Craig Edit Booth detecting commercials on a tape" width="880" />
+<img src="docs/screenshots/hero.png" alt="VHS Commercial Cutter detecting commercials on a tape" width="880" />
 
 </div>
 

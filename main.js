@@ -2,7 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const { ffprobeInfo, FFMPEG, FFPROBE } = require('./src/ffmpeg');
 const { detect, detectSample } = require('./src/detect');
-const { exportVideo } = require('./src/export');
+const { exportVideo, renderPreview } = require('./src/export');
+const os = require('os');
 const { ensureProxy, cacheSize, clearCache } = require('./src/proxy');
 const settings = require('./src/settings');
 const { decodeAccel } = require('./src/encoders');
@@ -18,7 +19,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 640,
     backgroundColor: '#0f1113',
-    title: '90s Craig Edit Booth',
+    title: 'VHS Commercial Cutter',
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -83,6 +84,15 @@ ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
 ipcMain.handle('detect:sample', async (_e, { filePath, opts, range }) => {
   opts.hwaccel = decodeAccel(settings.load().encoder);
   return detectSample(filePath, opts, range);
+});
+
+let previewSeq = 0;
+ipcMain.handle('preview:render', async (_e, payload) => {
+  payload.encoder = settings.load().encoder || 'cpu';
+  previewSeq += 1; // unique name each time (old temp file may still be open)
+  payload.outPath = path.join(os.tmpdir(), `vhs-preview-${process.pid}-${previewSeq}.mp4`);
+  await renderPreview(payload, {});
+  return payload.outPath;
 });
 
 ipcMain.handle('export:run', async (_e, payload) => {

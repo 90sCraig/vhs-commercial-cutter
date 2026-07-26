@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; media-src 'self' file:; img-src 'self' data: file:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
-  <title>90s Craig Edit Booth</title>
+  <title>VHS Commercial Cutter</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,15 +13,15 @@
     <div class="brand">
       <span class="logo">●</span>
       <div>
-        <div class="brand-name">90s&nbsp;Craig</div>
-        <div class="brand-sub">edit booth</div>
+        <div class="brand-name">VHS</div>
+        <div class="brand-sub">commercial cutter</div>
       </div>
       <span class="ch-sticker tape-label">CH. 99</span>
     </div>
     <div class="topbar-actions">
       <span id="fileLabel" class="file-label">No capture loaded</span>
       <button id="settingsBtn" class="btn" title="Settings">⚙ Settings</button>
-      <button id="guideBtn" class="btn" title="How to use 90s Craig Edit Booth">Guide</button>
+      <button id="guideBtn" class="btn" title="How to use VHS Commercial Cutter">Guide</button>
       <button id="openBtn" class="btn btn-primary">Open capture…</button>
     </div>
   </header>
@@ -40,6 +40,10 @@
           <span class="dot"></span>
           <span id="proxyStatusText"></span>
           <span id="proxyBar" class="proxy-bar hidden"><span id="proxyBarFill"></span></span>
+        </div>
+        <div id="previewBanner" class="preview-banner hidden">
+          <span id="previewBannerText">Previewing processed sample</span>
+          <button id="exitPreviewBtn" class="btn btn-small">Back to tape</button>
         </div>
         <div id="playerEmpty" class="player-empty">
           <div class="drop-hint">
@@ -200,6 +204,9 @@
             <span>Normalize loudness for YouTube (−14 LUFS)</span>
           </label>
           <small class="switch-note">Evens out quiet/loud commercials to a consistent volume.</small>
+
+          <button id="previewSampleBtn" class="btn full" style="margin-top:14px" disabled>▶ Preview these effects (6s)</button>
+          <small class="switch-note" style="margin-left:0">Renders a few seconds from the playhead with everything applied — the exact result, denoise/sharpen and normalized audio included. Color sliders also preview live on the player.</small>
         </div>
 
         <div class="card">
@@ -391,11 +398,11 @@
   <div id="helpModal" class="help-modal hidden">
     <div class="help-card">
       <div class="help-head">
-        <div class="help-title">90s Craig Edit Booth — Guide</div>
+        <div class="help-title">VHS Commercial Cutter — Guide</div>
         <button id="helpClose" class="help-close" title="Close">✕</button>
       </div>
       <div class="help-body">
-        <p class="lead">90s Craig Edit Booth finds the <b>commercials</b> in a digitized VHS tape so you can <b>save them as clips</b> — reframed vertical for TikTok / Reels. It can also do the reverse and keep just the show.</p>
+        <p class="lead">VHS Commercial Cutter finds the <b>commercials</b> in a digitized VHS tape so you can <b>save them as clips</b> — reframed vertical for TikTok / Reels. It can also do the reverse and keep just the show.</p>
 
         <h3>Quick start</h3>
         <ol>

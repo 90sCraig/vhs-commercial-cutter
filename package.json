@@ -1,7 +1,7 @@
 {
   "name": "vhs-editor",
   "version": "0.1.0",
-  "productName": "90s Craig Edit Booth",
+  "productName": "VHS Commercial Cutter",
   "description": "Find and remove commercials from digitized VHS tapes, restore the picture and sound, and export a clean copy or vertical social clips.",
   "main": "main.js",
   "author": "90sCraig",
@@ -23,8 +23,8 @@
     "ffprobe-static": "^3.1.0"
   },
   "build": {
-    "appId": "com.90scraig.editbooth",
-    "productName": "90s Craig Edit Booth",
+    "appId": "com.90scraig.vhscommercialcutter",
+    "productName": "VHS Commercial Cutter",
     "publish": {
       "provider": "github",
       "owner": "90sCraig",
@@ -56,11 +56,11 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "90s Craig Edit Booth",
-      "artifactName": "90s-Craig-Edit-Booth-Setup-${version}.${ext}"
+      "shortcutName": "VHS Commercial Cutter",
+      "artifactName": "VHS-Commercial-Cutter-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "90s-Craig-Edit-Booth-Portable-${version}.${ext}"
+      "artifactName": "VHS-Commercial-Cutter-Portable-${version}.${ext}"
     }
   }
 }

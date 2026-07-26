@@ -12,6 +12,9 @@ const state = {
   usingProxy: false,
   sampleBoundaries: [], // candidate boundaries from a "Test here" sample
   sampleRange: null,    // { start, end } of the last sample scan
+  proxyPath: null,      // file path of the preview proxy in use
+  inSamplePreview: false,
+  previewReturnTime: 0,
 };
 
 // ---- helpers ----------------------------------------------------------
@@ -76,7 +79,9 @@ async function loadFile(filePath) {
     state.duration = state.info.duration;
     $('detectBtn').disabled = false;
     $('sampleBtn').disabled = false;
+    $('previewSampleBtn').disabled = false;
     state.sampleBoundaries = []; state.sampleRange = null;
+    state.inSamplePreview = false; $('previewBanner').classList.add('hidden');
     buildProxyFor(filePath); // build a fast-seeking preview in the background
     if (!state.outputDir) $('outputDir').placeholder = dirName(filePath);
     const i = state.info;
@@ -116,6 +121,8 @@ async function buildProxyFor(filePath) {
   try {
     const res = await window.api.buildProxy(filePath, state.duration);
     if (state.filePath !== filePath) return; // user switched files meanwhile
+    state.proxyPath = res.path;
+    if (state.inSamplePreview) return; // don't yank the player out of a preview
     const player = $('player');
     const t = player.currentTime;
     const wasPlaying = !player.paused;
@@ -333,6 +340,7 @@ function renderScale() {
 function updatePlayhead() {
   const p = $('player');
   if (!state.duration) return;
+  if (state.inSamplePreview) return; // player is on the temp sample; don't move the playhead
   // Stop at the end of a single-segment preview.
   if (state.previewEnd != null && p.currentTime >= state.previewEnd) {
     p.pause();
@@ -444,6 +452,14 @@ function previewSegment(seg) {
 function selectSegment(id, { seek = false, play = false } = {}) {
   state.selected = id;
   const seg = state.segments.find((s) => s.id === id);
+  if (state.inSamplePreview) {
+    // leave the sample preview and return to the tape at this clip
+    state.previewReturnTime = seg ? seg.start + 0.03 : 0;
+    exitSamplePreview();
+    renderTimeline(); renderSegmentList();
+    if (seg) scrollSegIntoView(seg);
+    return;
+  }
   if (seg) {
     const p = $('player');
     if (play) previewSegment(seg);
@@ -546,6 +562,72 @@ function colorSettings() {
     b: parseFloat($('rgbB').value),
   };
 }
+// Live (approximate) color preview on the player via CSS filters. Covers
+// brightness/contrast/saturation; gamma/RGB and denoise/sharpen need the
+// rendered sample preview to see accurately.
+function applyLiveColor() {
+  const p = $('player');
+  if (state.inSamplePreview) return; // sample already has effects baked in
+  const c = colorSettings();
+  if (!c.enabled) { p.style.filter = ''; return; }
+  const b = (1 + (c.brightness || 0)).toFixed(3);
+  const con = (c.contrast || 1).toFixed(3);
+  const sat = (c.saturation || 1).toFixed(3);
+  p.style.filter = `brightness(${b}) contrast(${con}) saturate(${sat})`;
+}
+
+// Render a short sample with the full pipeline and play it in the player.
+async function renderSamplePreview() {
+  if (!state.filePath) return;
+  const p = $('player');
+  const start = p.currentTime;
+  if (!state.inSamplePreview) state.previewReturnTime = start;
+  $('previewSampleBtn').disabled = true;
+  setProxyStatus('Rendering preview…', { spinning: true });
+  try {
+    const out = await window.api.renderPreview({
+      filePath: state.filePath,
+      start,
+      duration: 6,
+      correction: colorSettings(),
+      enhance: $('enhancePreset').value,
+      layout: { frame: 'source', resolution: 'source' }, // focus on color/restore/audio
+      quality: exportQuality(),
+      fps: 'source',
+      audioDriftMs: parseInt($('audioDrift').value, 10),
+      normalizeAudio: $('normalizeAudio').checked,
+    });
+    state.inSamplePreview = true;
+    p.style.filter = ''; // effects are baked into the render
+    p.src = toFileUrl(out);
+    p.addEventListener('loadedmetadata', function once() {
+      p.removeEventListener('loadedmetadata', once);
+      p.play().catch(() => {});
+    });
+    $('previewBanner').classList.remove('hidden');
+    setProxyStatus('');
+  } catch (e) {
+    toast('Preview failed: ' + e.message, true);
+    setProxyStatus('');
+  } finally {
+    $('previewSampleBtn').disabled = false;
+  }
+}
+
+function exitSamplePreview() {
+  const p = $('player');
+  state.inSamplePreview = false;
+  $('previewBanner').classList.add('hidden');
+  const back = state.proxyPath || state.filePath;
+  const t = state.previewReturnTime;
+  p.src = toFileUrl(back);
+  p.addEventListener('loadedmetadata', function once() {
+    p.removeEventListener('loadedmetadata', once);
+    try { p.currentTime = t; } catch (_) {}
+  });
+  applyLiveColor();
+}
+
 function exportMode() {
   return document.querySelector('input[name=mode]:checked').value;
 }
@@ -838,6 +920,8 @@ function init() {
   $('detectBtn').addEventListener('click', runDetect);
   $('sampleBtn').addEventListener('click', runSample);
   $('exportBtn').addEventListener('click', runExport);
+  $('previewSampleBtn').addEventListener('click', renderSamplePreview);
+  $('exitPreviewBtn').addEventListener('click', exitSamplePreview);
 
   $('folderBtn').addEventListener('click', async () => {
     const d = await window.api.openFolder();
@@ -914,8 +998,10 @@ function init() {
   // color toggle
   const colorEnabled = $('colorEnabled');
   const colorControls = $('colorControls');
-  const syncColor = () => colorControls.classList.toggle('off', !colorEnabled.checked);
+  const syncColor = () => { colorControls.classList.toggle('off', !colorEnabled.checked); applyLiveColor(); };
   colorEnabled.addEventListener('change', syncColor); syncColor();
+  ['brightness', 'contrast', 'saturation', 'gamma', 'rgbR', 'rgbG', 'rgbB'].forEach((id) =>
+    $(id).addEventListener('input', applyLiveColor));
 
   const clearPresetChips = () => {
     $('presetSocial').classList.remove('active');
@@ -979,7 +1065,7 @@ function init() {
 
   // show ffmpeg source in title tooltip
   window.api.ffmpegPaths().then((p) => {
-    document.title = '90s Craig Edit Booth';
+    document.title = 'VHS Commercial Cutter';
     $('fileLabel').title = `ffmpeg: ${p.ffmpeg}`;
   });
 }

@@ -230,4 +230,13 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
   return { outputs };
 }
 
-module.exports = { exportVideo };
+// Render a short sample window with the given settings to outPath, for an
+// accurate "what will this look/sound like" preview (color, denoise/sharpen,
+// normalized audio). Uses the same pipeline as export.
+function renderPreview({ input, start, duration, outPath, correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio }, hooks = {}) {
+  return encodeSegment(input, start, duration, outPath,
+    { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio },
+    hooks.onProgress);
+}
+
+module.exports = { exportVideo, renderPreview };

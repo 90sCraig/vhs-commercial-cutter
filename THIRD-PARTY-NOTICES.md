@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-90s Craig Edit Booth bundles and uses the following third-party software.
+VHS Commercial Cutter bundles and uses the following third-party software.
 
 ## FFmpeg
 This application bundles **FFmpeg** (`ffmpeg` and `ffprobe`) and invokes it as a

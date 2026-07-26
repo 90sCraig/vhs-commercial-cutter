@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   detect: (filePath, opts) => ipcRenderer.invoke('detect:run', { filePath, opts }),
   detectSample: (filePath, opts, range) => ipcRenderer.invoke('detect:sample', { filePath, opts, range }),
   export: (payload) => ipcRenderer.invoke('export:run', payload),
+  renderPreview: (payload) => ipcRenderer.invoke('preview:render', payload),
   buildProxy: (filePath, duration) => ipcRenderer.invoke('proxy:ensure', { filePath, duration }),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (partial) => ipcRenderer.invoke('settings:set', partial),

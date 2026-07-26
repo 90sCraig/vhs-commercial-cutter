@@ -69,7 +69,7 @@ for (const f of files) {
 run(gh, [
   'release', 'create', tag, ...files,
   '--repo', REPO,
-  '--title', `90s Craig Edit Booth ${version}`,
+  '--title', `VHS Commercial Cutter ${version}`,
   '--notes', `Release ${version}.`,
 ], false);
 
