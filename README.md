@@ -28,6 +28,18 @@ It looks for the fade-to-black and the dead-air that sit between the program and
 
 It's not a full video editor and doesn't pretend to be. Load a tape, check the cuts, export.
 
+## What it isn't
+
+This is the last step, not the whole pipeline. It assumes the capture you hand it is already finished and ready to go. It won't deinterlace, fix field order, or straighten out a stretched aspect ratio, and it doesn't touch anything on the capture side at all. Everybody's rig and workflow are different enough that guessing at that stage would do more harm than good, and there are better tools for it.
+
+What it does handle is the light stuff at the end: denoise and sharpen a little, nudge the color, even out the volume, reframe for social if that's what you're making. Final polish, not technical video work.
+
+## Fair warning
+
+I'm not a programmer. I built this with AI doing the heavy lifting, to solve a problem I had — a stack of tapes, and cutting the ads out by hand got old fast. I'm putting it out in case it saves someone else the same trouble.
+
+Which means it's probably broken in ways I haven't run into yet. I'll fix what I can, but there's a ceiling on what I can work out on my own. If you know what you're doing and want to pitch in, I'd genuinely appreciate it.
+
 ## Features
 
 - **Finds the commercials on its own.** It lines up black frames with silent audio to spot the breaks. If it's guessing wrong, turn the sensitivity up or down.
