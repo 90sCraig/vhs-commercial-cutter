@@ -28,6 +28,18 @@ It looks for the fade-to-black and the dead-air that sit between the program and
 
 It's not a full video editor and doesn't pretend to be. Load a tape, check the cuts, export.
 
+## Sample output
+
+One tape, every ad break pulled out and exported as a single file:
+
+<div align="center">
+
+[<img src="https://i.ytimg.com/vi/vLCmeiwF9JU/sddefault.jpg" alt="Late ’80s Cincinnati Commercials | WKRC Channel 12" width="600" />](https://youtu.be/vLCmeiwF9JU)
+
+<sub>▶ [Late ’80s Cincinnati Commercials | WKRC Channel 12](https://youtu.be/vLCmeiwF9JU) on YouTube</sub>
+
+</div>
+
 ## What it isn't
 
 This is the last step, not the whole pipeline. It assumes your capture is already finished. It won't deinterlace, fix field order, or straighten a stretched aspect ratio — no capture-side work at all. Everyone's chain is different, and a wrong guess at that stage bakes into the file for good. Use the tools built for it.
