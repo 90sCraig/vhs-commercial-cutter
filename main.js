@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, powerSaveBlocker } = require('electron');
 const path = require('path');
 const { ffprobeInfo, FFMPEG, FFPROBE } = require('./src/ffmpeg');
 const { detect, detectSample } = require('./src/detect');
@@ -11,6 +11,18 @@ const updater = require('./src/updater');
 const { spawn } = require('child_process');
 
 let win;
+
+// Long ffmpeg runs are unattended by nature. If Windows sleeps mid-encode, an
+// open GPU encoder session can wedge the driver on resume and take the desktop
+// with it. This keeps the system awake; the display may still switch off.
+async function keepAwake(fn) {
+  const id = powerSaveBlocker.start('prevent-app-suspension');
+  try {
+    return await fn();
+  } finally {
+    try { powerSaveBlocker.stop(id); } catch (_) { /* already stopped */ }
+  }
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -76,9 +88,9 @@ ipcMain.handle('video:probe', async (_e, filePath) => {
 
 ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
   opts.hwaccel = decodeAccel(settings.load().encoder); // GPU-accelerated decode
-  return detect(filePath, opts, {
+  return keepAwake(() => detect(filePath, opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
-  });
+  }));
 });
 
 ipcMain.handle('detect:sample', async (_e, { filePath, opts, range }) => {
@@ -97,10 +109,12 @@ ipcMain.handle('preview:render', async (_e, payload) => {
 
 ipcMain.handle('export:run', async (_e, payload) => {
   payload.encoder = settings.load().encoder || 'cpu'; // single source of truth
-  return exportVideo(payload, {
+  return keepAwake(() => exportVideo(payload, {
     onProgress: (p) => win.webContents.send('export:progress', p),
     onStatus: (s) => win.webContents.send('export:status', s),
-  });
+    onFallback: (enc) => win.webContents.send('export:status',
+      `${String(enc).toUpperCase()} encoding failed — finishing on the CPU.`),
+  }));
 });
 
 ipcMain.handle('proxy:ensure', async (_e, { filePath, duration }) => {

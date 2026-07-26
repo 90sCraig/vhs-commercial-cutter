@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { runFfmpeg, tmpDir } = require('./ffmpeg');
+const { runFfmpeg, ffprobeInfo, tmpDir } = require('./ffmpeg');
 const { videoCodecArgs } = require('./encoders');
 
 function pad(n, w = 2) { return String(n).padStart(w, '0'); }
@@ -141,9 +141,28 @@ function encodeSegment(input, start, duration, outPath, opts, onProgress) {
   return runFfmpeg(args, { onProgress });
 }
 
+// Encode one segment, retrying on the CPU if the hardware encoder fails.
+// A partial file is left behind when ffmpeg dies mid-encode, so drop it before
+// the retry. Resolves true when the fallback was used, so the caller can stop
+// attempting the GPU for the rest of the run — these failures (wedged driver,
+// unsupported source, exhausted encoder sessions) rarely fix themselves.
+async function encodeWithFallback(input, start, duration, outPath, opts, onProgress, hooks) {
+  try {
+    await encodeSegment(input, start, duration, outPath, opts, onProgress);
+    return false;
+  } catch (e) {
+    if (opts.encoder === 'cpu') throw e;   // nothing left to fall back to
+    try { fs.unlinkSync(outPath); } catch (_) { /* nothing written yet */ }
+    hooks.onFallback && hooks.onFallback(opts.encoder, e);
+    await encodeSegment(input, start, duration, outPath,
+      { ...opts, encoder: 'cpu' }, onProgress);
+    return true;
+  }
+}
+
 // Concatenate already-encoded parts with stream copy (fast, lossless).
-function concatParts(parts, outPath) {
-  const listFile = path.join(tmpDir, `vhs-concat-${Date.now()}.txt`);
+function concatParts(parts, outPath, listDir) {
+  const listFile = path.join(listDir || tmpDir, `vhs-concat-${Date.now()}.txt`);
   const body = parts.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n');
   fs.writeFileSync(listFile, body, 'utf8');
   const args = [
@@ -159,11 +178,43 @@ function concatParts(parts, outPath) {
   });
 }
 
+function gb(bytes) { return (bytes / 1073741824).toFixed(1); }
+
+// Free bytes on the volume holding dir. 0 when it can't be determined.
+function freeBytes(dir) {
+  try {
+    const st = fs.statfsSync(dir);
+    return st.bavail * st.bsize;
+  } catch (_) {
+    return 0;
+  }
+}
+
+// Rough estimate of the space an export will occupy. Re-encoding a capture at
+// the default quality lands near the source's own bitrate, so scale the source
+// bytes-per-second by the exported duration. Merged mode stages every segment
+// beside the finished file, so it needs room for both at once.
+// Returns 0 when the source can't be measured — callers skip the check.
+async function estimateBytes(input, exportSeconds, mode) {
+  try {
+    const info = await ffprobeInfo(input);
+    const size = fs.statSync(input).size;
+    if (!info.duration || !size || !exportSeconds) return 0;
+    const bytes = (size / info.duration) * exportSeconds;
+    return Math.round(bytes * (mode === 'split' ? 1.1 : 2.15));
+  } catch (_) {
+    return 0;
+  }
+}
+
 // mode: 'merged' | 'split'
 // target: 'save' (the clips you're keeping — commercials by default) | 'skip' (the rest)
 // layout: { frame: 'source'|'9:16'|'4:5'|'1:1', fill: 'blur'|'bars'|'crop' }
 async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', fps = 'source', audioDriftMs = 0, encoder = 'cpu', normalizeAudio = false, outputDir, baseName }, hooks = {}) {
   const encodeOpts = { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio };
+  // Downgraded to CPU for the remainder once a hardware encode has failed.
+  let active = encodeOpts;
+  let fellBackToCpu = false;
   const chosen = segments
     .filter((s) => (target === 'skip' ? !s.keep : s.keep))
     .sort((a, b) => a.start - b.start);
@@ -181,7 +232,27 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
   let doneDuration = 0;
   const report = () => hooks.onProgress && hooks.onProgress(Math.min(1, doneDuration / totalDuration));
 
-  const work = path.join(tmpDir, `vhs-export-${Date.now()}`);
+  // Pre-flight space check. Refusing up front beats dying an hour in — and
+  // when the staging volume is the Windows drive, running it dry takes the
+  // whole machine down, not just this export.
+  fs.mkdirSync(outputDir, { recursive: true });
+  hooks.onStatus && hooks.onStatus('Checking free space…');
+  const needBytes = await estimateBytes(input, totalDuration, mode);
+  const free = freeBytes(outputDir);
+  if (needBytes && free && free < needBytes) {
+    throw new Error(
+      `Not enough free space in ${outputDir} — this export needs about `
+      + `${gb(needBytes)} GB but only ${gb(free)} GB is free.`
+      + (mode === 'split' ? '' : ' Merged exports stage every segment beside the'
+        + ' finished file before joining them, so they need roughly twice the'
+        + ' final size. Exporting as separate clips needs far less.'),
+    );
+  }
+
+  // Staged segments live beside the output rather than in the system temp
+  // folder. Temp is on C:, so a large merged export could fill the Windows
+  // drive even when the output was pointed at a roomier disk.
+  const work = path.join(outputDir, `.vhs-export-${Date.now()}`);
   fs.mkdirSync(work, { recursive: true });
   const outputs = [];
 
@@ -193,9 +264,9 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
         const out = path.join(outputDir, `${baseName}_${splitTag}${pad(i)}.mp4`);
         const dur = s.end - s.start;
         hooks.onStatus && hooks.onStatus(`Exporting clip ${i} of ${chosen.length}…`);
-        await encodeSegment(input, s.start, dur, out, encodeOpts, (secs) => {
+        if (await encodeWithFallback(input, s.start, dur, out, active, (secs) => {
           hooks.onProgress && hooks.onProgress(Math.min(1, (doneDuration + secs) / totalDuration));
-        });
+        }, hooks)) { active = { ...active, encoder: 'cpu' }; fellBackToCpu = true; }
         doneDuration += dur;
         report();
         outputs.push(out);
@@ -208,16 +279,16 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
         const part = path.join(work, `part${pad(i, 4)}.mp4`);
         const dur = s.end - s.start;
         hooks.onStatus && hooks.onStatus(`Rendering segment ${i} of ${chosen.length}…`);
-        await encodeSegment(input, s.start, dur, part, encodeOpts, (secs) => {
+        if (await encodeWithFallback(input, s.start, dur, part, active, (secs) => {
           hooks.onProgress && hooks.onProgress(Math.min(1, (doneDuration + secs) / totalDuration));
-        });
+        }, hooks)) { active = { ...active, encoder: 'cpu' }; fellBackToCpu = true; }
         doneDuration += dur;
         report();
         parts.push(part);
       }
       const out = path.join(outputDir, `${baseName}_${mergedTag}.mp4`);
       hooks.onStatus && hooks.onStatus('Joining segments…');
-      await concatParts(parts, out);
+      await concatParts(parts, out, work);
       outputs.push(out);
     }
   } finally {
@@ -227,7 +298,7 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
     } catch (_) {}
   }
 
-  return { outputs };
+  return { outputs, fellBackToCpu };
 }
 
 // Render a short sample window with the given settings to outPath, for an
