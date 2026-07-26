@@ -52,6 +52,8 @@ I'm not a programmer. I built this with AI, for my own workflow, and I'm putting
 
 So expect rough edges. There are almost certainly bugs I haven't hit yet. I'll fix what I can, but I don't have the knowledge to turn this into a polished product on my own. If you do, I'd love the help.
 
+Bugs, fixes, and ideas all go in [GitHub issues](https://github.com/90sCraig/vhs-commercial-cutter/issues). That's the only place I'm tracking them.
+
 ## Features
 
 - **Finds the commercials on its own.** It lines up black frames with silent audio to spot the breaks. If it's guessing wrong, turn the sensitivity up or down.
