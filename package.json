@@ -2,7 +2,7 @@
   "name": "vhs-editor",
   "version": "0.2.0",
   "productName": "VHS Commercial Cutter",
-  "description": "Find and remove commercials from digitized VHS tapes, restore the picture and sound, and export a clean copy or vertical social clips.",
+  "description": "Find the commercials in digitized VHS tapes and save them as clips, or keep the show with the ads removed.",
   "main": "main.js",
   "author": "90sCraig",
   "license": "MIT",
