@@ -63,7 +63,7 @@ function videoPreParts(correction, enhance) {
 }
 
 // Build the video-filter args for a segment: restoration + optional reframe.
-// Returns { vf } for a simple graph or { complex, map } for filter_complex.
+// Returns { vf }, or {} when there is nothing to apply.
 function buildVideoFilter(correction, enhance, layout) {
   const pre = videoPreParts(correction, enhance);
   const dims = layout && FRAMES[layout.frame];
@@ -76,25 +76,11 @@ function buildVideoFilter(correction, enhance, layout) {
   }
   const [W, H] = dims;
   const prep = pre.length ? `${pre.join(',')},` : '';
-  const fill = (layout && layout.fill) || 'blur';
-
-  if (fill === 'bars') {
-    return { vf: `${prep}scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
-      `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1` };
-  }
-  if (fill === 'crop') {
-    return { vf: `${prep}scale=${W}:${H}:force_original_aspect_ratio=increase,` +
-      `crop=${W}:${H},setsar=1` };
-  }
-  // Blurred background: a zoomed, blurred copy fills the frame; the fitted
-  // clip is overlaid centered on top. Only bites when the source aspect does
-  // not match the target frame.
-  const complex =
-    `[0:v]${prep}split=2[b][f];` +
-    `[b]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},gblur=sigma=20[bb];` +
-    `[f]scale=${W}:${H}:force_original_aspect_ratio=decrease[ff];` +
-    `[bb][ff]overlay=(W-w)/2:(H-h)/2,setsar=1[v]`;
-  return { complex, map: '[v]' };
+  // Reframing always centre-crops: scale to cover the target, then trim the
+  // overflow evenly from both sides (ffmpeg's crop centres when given no x/y).
+  // On a 4:3 picture inside a 16:9 frame that removes exactly the pillars.
+  return { vf: `${prep}scale=${W}:${H}:force_original_aspect_ratio=increase,` +
+    `crop=${W}:${H},setsar=1` };
 }
 
 // Audio drift correction: shift the audio track ±ms to fix lip-sync.
@@ -121,11 +107,7 @@ function encodeSegment(input, start, duration, outPath, opts, onProgress) {
   const { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio } = opts;
   const args = ['-hide_banner', '-y', '-ss', String(start), '-i', input, '-t', String(duration)];
   const f = buildVideoFilter(correction, enhance, layout);
-  if (f.complex) {
-    args.push('-filter_complex', f.complex, '-map', f.map, '-map', '0:a?');
-  } else if (f.vf) {
-    args.push('-vf', f.vf);
-  }
+  if (f.vf) args.push('-vf', f.vf);
   const af = audioChain(audioDriftMs, normalizeAudio);
   if (af) args.push('-af', af);
   const crf = QUALITY[quality] != null ? QUALITY[quality] : 18;
@@ -212,7 +194,7 @@ async function estimateBytes(input, exportSeconds, mode) {
 
 // mode: 'merged' | 'split'
 // target: 'save' (the clips you're keeping — commercials by default) | 'skip' (the rest)
-// layout: { frame: 'source'|'4:3', fill: 'blur'|'bars'|'crop' }
+// layout: { frame: 'source'|'4:3', resolution: 'source'|<height> }
 async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', fps = 'source', audioDriftMs = 0, encoder = 'cpu', normalizeAudio = false, outputDir, baseName }, hooks = {}) {
   const encodeOpts = { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio };
   // Downgraded to CPU for the remainder once a hardware encode has failed.

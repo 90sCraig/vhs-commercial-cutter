@@ -658,7 +658,6 @@ function applyPreset(name) {
 function exportLayout() {
   return {
     frame: $('exportFrame').value,
-    fill: $('exportFill').value,
     resolution: $('exportResolution').value,
   };
 }
@@ -672,7 +671,6 @@ function exportBaseName() {
 // in sync with the chosen Frame.
 function syncFrameFields() {
   const src = $('exportFrame').value === 'source';
-  $('fillField').style.display = src ? 'none' : '';
   $('resolutionField').style.display = src ? '' : 'none';
 }
 
@@ -1022,7 +1020,6 @@ function init() {
   document.querySelectorAll('input[name=mode]').forEach((r) =>
     r.addEventListener('change', () => { clearPresetChips(); updateExportSummary(); }));
   $('exportTarget').addEventListener('change', () => { clearPresetChips(); updateExportSummary(); });
-  $('exportFill').addEventListener('change', () => { clearPresetChips(); updateExportSummary(); });
   $('exportFrame').addEventListener('change', () => {
     clearPresetChips();
     syncFrameFields();
