@@ -228,11 +228,11 @@
             </select>
           </div>
           <div class="field" id="fillField" style="display:none">
-            <label>Fill empty space <span class="info" tabindex="0" data-help="If the source shape doesn't match the target frame, something has to fill the gap. Blurred background (recommended) puts a soft zoomed copy behind the clip. Black bars leaves plain bars. Crop to fill zooms in edge-to-edge, losing the sides.">i</span></label>
+            <label>Fill empty space <span class="info" tabindex="0" data-help="When the source shape doesn't match the target frame, something has to give — and which option is right depends on the direction. Wider source into a narrower frame (16:9 into 4:3): use Crop to fill. It trims the sides, and on a capture that's 4:3 inside a 16:9 frame that takes off exactly the black pillars and keeps all the picture. Narrower source into a wider frame (4:3 into 16:9): use Blurred background, which fills the gap with a soft zoomed copy, or Black bars for plain bars. Crop is a straight centre crop, so check the edges on one clip if a tape was captured slightly off-centre.">i</span></label>
             <select id="exportFill">
-              <option value="blur">Blurred background (recommended)</option>
+              <option value="blur">Blurred background — best when widening</option>
               <option value="bars">Black bars</option>
-              <option value="crop">Crop to fill</option>
+              <option value="crop">Crop to fill — best when narrowing</option>
             </select>
           </div>
           <div class="field" id="resolutionField">
@@ -441,7 +441,7 @@
         <h3>Export settings</h3>
         <ul>
           <li><b>What to export</b> — the saved commercials, or the skipped show.</li>
-          <li><b>Frame / Fill</b> — keep the source shape or reframe to 4:3; Fill handles any leftover space (blurred background looks best).</li>
+          <li><b>Frame / Fill</b> — keep the source shape or reframe to 4:3. Fill decides what happens to the mismatch: <em>Crop to fill</em> when narrowing a widescreen source (it takes the black pillars off a 4:3-in-16:9 capture), <em>Blurred background</em> when widening.</li>
           <li><b>Resolution · Frame rate · Quality</b> — output size and encoding (Archive → Low).</li>
           <li><b>Export as</b> — a custom filename. <b>One merged file</b> vs <b>Separate clips</b>.</li>
         </ul>
