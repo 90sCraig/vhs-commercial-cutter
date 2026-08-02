@@ -1,6 +1,6 @@
 {
   "name": "vhs-editor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "productName": "VHS Commercial Cutter",
   "description": "Find and remove commercials from digitized VHS tapes, restore the picture and sound, and export a clean copy or vertical social clips.",
   "main": "main.js",
