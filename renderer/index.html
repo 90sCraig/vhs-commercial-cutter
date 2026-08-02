@@ -15,10 +15,10 @@
       <div class="brand-name">VHS Commercial Cutter</div>
     </div>
     <div class="topbar-actions">
-      <span id="fileLabel" class="file-label">No capture loaded</span>
+      <span id="fileLabel" class="file-label">No file loaded</span>
       <button id="settingsBtn" class="btn" title="Settings">⚙ Settings</button>
       <button id="guideBtn" class="btn" title="How to use VHS Commercial Cutter">Guide</button>
-      <button id="openBtn" class="btn btn-primary">Open capture…</button>
+      <button id="openBtn" class="btn btn-primary">Open file…</button>
     </div>
   </header>
 
@@ -43,8 +43,8 @@
         </div>
         <div id="playerEmpty" class="player-empty">
           <div class="drop-hint">
-            <span class="big">Drop a VHS capture here</span>
-            <span class="small">or use “Open capture…”. MP4 / MKV / AVI / MOV</span>
+            <span class="big">Drop a video file here</span>
+            <span class="small">or use “Open file…”. MP4 / MKV / AVI / MOV</span>
           </div>
         </div>
       </div>
@@ -227,40 +227,18 @@
               <option value="4:3">Standard 4:3 (cropped) — 1440×1080 · YouTube/TV</option>
             </select>
           </div>
-          <div class="field" id="resolutionField">
-            <label>Resolution</label>
-            <select id="exportResolution">
-              <option value="source">Same as source</option>
-              <option value="1080">1080p</option>
-              <option value="720">720p</option>
-              <option value="480">480p</option>
+          <div class="field">
+            <label>Quality <span class="info" tabindex="0" data-help="How hard the encoder works to preserve detail. Archive is near-lossless and large; Low is small and soft. Resolution and frame rate always match your source, so this is the only thing affecting file size.">i</span></label>
+            <select id="exportQuality">
+              <option value="archive">Archive · near-lossless</option>
+              <option value="high" selected>High · Blu-ray</option>
+              <option value="balanced">Balanced · YouTube</option>
+              <option value="efficient">Efficient · DVD</option>
+              <option value="low">Low · VHS LP</option>
             </select>
           </div>
-          <div class="field-row">
-            <div class="field">
-              <label>Frame rate</label>
-              <select id="exportFps">
-                <option value="source">Same as source</option>
-                <option value="24">24</option>
-                <option value="25">25 · PAL</option>
-                <option value="29.97">29.97 · NTSC</option>
-                <option value="30">30</option>
-                <option value="60">60</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Quality</label>
-              <select id="exportQuality">
-                <option value="archive">Archive · near-lossless</option>
-                <option value="high" selected>High · Blu-ray</option>
-                <option value="balanced">Balanced · YouTube</option>
-                <option value="efficient">Efficient · DVD</option>
-                <option value="low">Low · VHS LP</option>
-              </select>
-            </div>
-          </div>
           <div class="field">
-            <label>Export as</label>
+            <label>Output filename</label>
             <input id="exportName" type="text" class="text-input" placeholder="(source file name)" />
           </div>
           <div class="seg-toggle">
@@ -392,7 +370,7 @@
 
         <h3>Quick start</h3>
         <ol>
-          <li><b>Open a capture</b> — click <em>Open capture…</em> (top-right) or drag a video onto the player. A small preview builds in the background so scrubbing is fast — watch the badge at the top-left of the video. Detection and export always use your full-quality original, never the preview.</li>
+          <li><b>Open a file</b> — click <em>Open file…</em> (top-right) or drag a video onto the player. A small preview builds in the background so scrubbing is fast — watch the badge at the top-left of the video. Detection and export always use your full-quality original, never the preview.</li>
           <li><b>Detect commercials</b> — click <em>Detect commercials</em>. It scans for fade-to-black + audio silence (the marks between show and ads) and splits the tape into clips, with the ads defaulting to <b>save</b>.</li>
           <li><b>Review</b> — clips appear on the timeline and in the list, colored <span class="k">green = save</span> / <span class="c">red = skip</span>. Click one to play it, and fix any mistakes (see <em>Editing</em>).</li>
           <li><b>Pick a preset</b> — in Export, click <em>🎬 Commercial clips</em> (or <em>📺 Keep the show</em>).</li>
@@ -435,7 +413,7 @@
           <li><b>What to export</b> — the saved commercials, or the skipped show.</li>
           <li><b>Frame</b> — keep the source shape, or reframe to 4:3 (1440×1080). Reframing centre-crops, which takes the black pillars off a 4:3-in-16:9 capture and leaves the picture whole.</li>
           <li><b>Resolution · Frame rate · Quality</b> — output size and encoding (Archive → Low).</li>
-          <li><b>Export as</b> — a custom filename. <b>One merged file</b> vs <b>Separate clips</b>.</li>
+          <li><b>Output filename</b> — a custom name for the files. <b>One merged file</b> vs <b>Separate clips</b>.</li>
         </ul>
 
         <h3>Keyboard</h3>

@@ -44,8 +44,34 @@ function createWindow() {
   win.webContents.once('did-finish-load', () => updater.initUpdater(win));
 }
 
+// On first launch, find the fastest encoder that actually works on this
+// machine rather than leaving everyone on CPU. Runs once: the result is
+// written to settings, and the user can still change it by hand afterwards.
+// Returns the encoder it settled on, or null if this is not the first run.
+async function detectEncoderOnce() {
+  const s = settings.load();
+  if (s.encoderDetected) return null;
+  for (const enc of ['nvenc', 'qsv', 'amf']) {
+    const r = await probeEncoder(enc);
+    if (r.ok) {
+      settings.save({ encoder: enc, encoderDetected: true });
+      return enc;
+    }
+  }
+  settings.save({ encoder: 'cpu', encoderDetected: true });
+  return 'cpu';
+}
+
 app.whenReady().then(() => {
   createWindow();
+  // Probe after the window is up so startup stays instant. Exports read the
+  // encoder from settings in this process, so the result takes effect as soon
+  // as it lands; the message only refreshes the Settings dropdown.
+  detectEncoderOnce()
+    .then((enc) => {
+      if (enc && win && !win.isDestroyed()) win.webContents.send('encoder:detected', enc);
+    })
+    .catch((e) => { console.error('[encoder] detection failed, keeping default:', e); });
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -62,7 +88,7 @@ ipcMain.handle('app:version', () => app.getVersion());
 
 ipcMain.handle('dialog:openVideo', async () => {
   const res = await dialog.showOpenDialog(win, {
-    title: 'Open VHS capture',
+    title: 'Open video file',
     properties: ['openFile'],
     filters: [
       { name: 'Video', extensions: ['mp4', 'mkv', 'avi', 'mov', 'm2ts', 'ts', 'wmv', 'mpg', 'mpeg'] },
@@ -139,22 +165,26 @@ ipcMain.handle('settings:set', (_e, partial) => settings.save(partial));
 ipcMain.handle('proxy:cacheSize', () => cacheSize());
 ipcMain.handle('proxy:clearCache', () => clearCache());
 
-// Quick capability test: try a 1-frame encode with the chosen encoder.
-ipcMain.handle('encoder:test', (_e, encoder) => new Promise((resolve) => {
-  const map = {
-    nvenc: 'h264_nvenc', qsv: 'h264_qsv', amf: 'h264_amf', cpu: 'libx264',
-  };
-  const codec = map[encoder] || 'libx264';
-  const args = [
-    '-hide_banner', '-f', 'lavfi', '-i', 'color=black:s=256x256:d=1',
-    '-c:v', codec, '-f', 'null', process.platform === 'win32' ? 'NUL' : '/dev/null',
-  ];
-  const proc = spawn(FFMPEG, args);
-  let err = '';
-  proc.stderr.on('data', (d) => { err += d; });
-  proc.on('error', () => resolve({ ok: false, error: 'failed to launch ffmpeg' }));
-  proc.on('close', (code) => resolve(code === 0 ? { ok: true } : { ok: false, error: err.slice(-400) }));
-}));
+// Quick capability test: try a 1-frame encode with the given encoder.
+function probeEncoder(encoder) {
+  return new Promise((resolve) => {
+    const map = {
+      nvenc: 'h264_nvenc', qsv: 'h264_qsv', amf: 'h264_amf', cpu: 'libx264',
+    };
+    const codec = map[encoder] || 'libx264';
+    const args = [
+      '-hide_banner', '-f', 'lavfi', '-i', 'color=black:s=256x256:d=1',
+      '-c:v', codec, '-f', 'null', process.platform === 'win32' ? 'NUL' : '/dev/null',
+    ];
+    const proc = spawn(FFMPEG, args);
+    let err = '';
+    proc.stderr.on('data', (d) => { err += d; });
+    proc.on('error', () => resolve({ ok: false, error: 'failed to launch ffmpeg' }));
+    proc.on('close', (code) => resolve(code === 0 ? { ok: true } : { ok: false, error: err.slice(-400) }));
+  });
+}
+
+ipcMain.handle('encoder:test', (_e, encoder) => probeEncoder(encoder));
 
 ipcMain.handle('shell:showItem', async (_e, p) => {
   shell.showItemInFolder(p);

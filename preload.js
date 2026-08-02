@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('api', {
   cacheSize: () => ipcRenderer.invoke('proxy:cacheSize'),
   clearCache: () => ipcRenderer.invoke('proxy:clearCache'),
   testEncoder: (encoder) => ipcRenderer.invoke('encoder:test', encoder),
+  onEncoderDetected: (cb) => ipcRenderer.on('encoder:detected', (_e, enc) => cb(enc)),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),
   installUpdate: () => ipcRenderer.invoke('update:install'),

@@ -596,9 +596,8 @@ async function renderSamplePreview() {
       duration: 6,
       correction: colorSettings(),
       enhance: $('enhancePreset').value,
-      layout: { frame: 'source', resolution: 'source' }, // focus on color/restore/audio
+      layout: { frame: 'source' }, // focus on color/restore/audio
       quality: exportQuality(),
-      fps: 'source',
       audioDriftMs: parseInt($('audioDrift').value, 10),
       normalizeAudio: $('normalizeAudio').checked,
     });
@@ -650,28 +649,19 @@ function applyPreset(name) {
     $('exportFrame').value = 'source';
     setMode('merged');
   }
-  syncFrameFields();
   $('presetSocial').classList.toggle('active', name === 'social');
   $('presetClean').classList.toggle('active', name === 'clean');
   updateExportSummary();
 }
+// Resolution and frame rate always follow the source, so frame is the only
+// layout choice left.
 function exportLayout() {
-  return {
-    frame: $('exportFrame').value,
-    resolution: $('exportResolution').value,
-  };
+  return { frame: $('exportFrame').value };
 }
 function exportQuality() { return $('exportQuality').value; }
-function exportFps() { return $('exportFps').value; }
 function exportBaseName() {
   const v = $('exportName').value.trim();
   return v ? v.replace(/[\\/:*?"<>|]/g, '_') : baseName(state.filePath);
-}
-// Keep the Resolution field (source-frame only) and Fill field (reframe only)
-// in sync with the chosen Frame.
-function syncFrameFields() {
-  const src = $('exportFrame').value === 'source';
-  $('resolutionField').style.display = src ? '' : 'none';
 }
 
 const FRAME_LABELS = {
@@ -693,10 +683,7 @@ function updateExportSummary() {
   const layout = exportLayout();
   const frameNote = layout.frame === 'source' ? '' : ` · reframed to ${FRAME_LABELS[layout.frame]}`;
   const qLabel = $('exportQuality').selectedOptions[0].textContent.split(' · ')[0];
-  const fps = exportFps();
-  const bits = [`${qLabel} quality`];
-  if (layout.frame === 'source' && layout.resolution !== 'source') bits.push(`${layout.resolution}p`);
-  if (fps !== 'source') bits.push(`${fps} fps`);
+  const bits = [`${qLabel} quality`, 'source resolution and frame rate'];
   $('exportSummary').innerHTML =
     `Exporting <b>${chosen.length}</b> ${noun} clip(s) · ${fmtTime(total)}${frameNote}<br>` +
     (mode === 'merged' ? 'Output: one merged file' : `Output: ${chosen.length} separate clips`) +
@@ -720,7 +707,6 @@ async function runExport() {
     enhance: $('enhancePreset').value,
     layout: exportLayout(),
     quality: exportQuality(),
-    fps: exportFps(),
     audioDriftMs: parseInt($('audioDrift').value, 10),
     normalizeAudio: $('normalizeAudio').checked,
     outputDir,
@@ -840,6 +826,11 @@ async function initSettings() {
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
   $('setEncoder').value = state.settings.encoder;
+  // First run probes the hardware in the background; catch up when it lands.
+  window.api.onEncoderDetected((enc) => {
+    state.settings.encoder = enc;
+    $('setEncoder').value = enc;
+  });
   try { $('appVersion').textContent = await window.api.appVersion(); } catch (_) {}
 
   $('checkUpdatesBtn').addEventListener('click', async () => {
@@ -1020,12 +1011,7 @@ function init() {
   document.querySelectorAll('input[name=mode]').forEach((r) =>
     r.addEventListener('change', () => { clearPresetChips(); updateExportSummary(); }));
   $('exportTarget').addEventListener('change', () => { clearPresetChips(); updateExportSummary(); });
-  $('exportFrame').addEventListener('change', () => {
-    clearPresetChips();
-    syncFrameFields();
-    updateExportSummary();
-  });
-  ['exportResolution', 'exportFps', 'exportQuality'].forEach((id) =>
+  ['exportFrame', 'exportQuality'].forEach((id) =>
     $(id).addEventListener('change', () => { clearPresetChips(); updateExportSummary(); }));
   $('exportName').addEventListener('input', updateExportSummary);
 

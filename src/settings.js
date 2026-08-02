@@ -7,6 +7,7 @@ const DEFAULTS = {
   proxyEnabled: true,       // build a fast preview proxy on import
   proxyCacheCapGB: 8,       // cap the proxy cache; LRU-evict beyond this
   encoder: 'cpu',           // 'cpu' | 'nvenc' | 'qsv' | 'amf'
+  encoderDetected: false,   // set once the first-run hardware probe has run
 };
 
 function file() {

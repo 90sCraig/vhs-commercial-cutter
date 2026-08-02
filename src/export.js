@@ -68,11 +68,9 @@ function buildVideoFilter(correction, enhance, layout) {
   const pre = videoPreParts(correction, enhance);
   const dims = layout && FRAMES[layout.frame];
   if (!dims) {
-    // Source frame: restoration and/or optional downscale to a target height.
-    const parts = [...pre];
-    const h = layout && layout.resolution;
-    if (h && h !== 'source') parts.push(`scale=-2:${h}`);
-    return parts.length ? { vf: parts.join(',') } : {};
+    // Source frame: restoration filters only. Resolution always follows the
+    // source, so there is nothing to rescale.
+    return pre.length ? { vf: pre.join(',') } : {};
   }
   const [W, H] = dims;
   const prep = pre.length ? `${pre.join(',')},` : '';
@@ -102,16 +100,15 @@ function audioChain(driftMs, normalize) {
 
 // Encode a single [start,start+duration) slice, re-encoding so arbitrary cut
 // points are frame-accurate (VHS captures rarely have clean keyframes at cuts).
-// opts: { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio }
+// opts: { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio }
 function encodeSegment(input, start, duration, outPath, opts, onProgress) {
-  const { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio } = opts;
+  const { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio } = opts;
   const args = ['-hide_banner', '-y', '-ss', String(start), '-i', input, '-t', String(duration)];
   const f = buildVideoFilter(correction, enhance, layout);
   if (f.vf) args.push('-vf', f.vf);
   const af = audioChain(audioDriftMs, normalizeAudio);
   if (af) args.push('-af', af);
   const crf = QUALITY[quality] != null ? QUALITY[quality] : 18;
-  if (fps && fps !== 'source') args.push('-r', String(fps));
   args.push(
     ...videoCodecArgs(encoder, crf), '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '192k',
@@ -194,9 +191,9 @@ async function estimateBytes(input, exportSeconds, mode) {
 
 // mode: 'merged' | 'split'
 // target: 'save' (the clips you're keeping — commercials by default) | 'skip' (the rest)
-// layout: { frame: 'source'|'4:3', resolution: 'source'|<height> }
-async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', fps = 'source', audioDriftMs = 0, encoder = 'cpu', normalizeAudio = false, outputDir, baseName }, hooks = {}) {
-  const encodeOpts = { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio };
+// layout: { frame: 'source'|'4:3' }
+async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', audioDriftMs = 0, encoder = 'cpu', normalizeAudio = false, outputDir, baseName }, hooks = {}) {
+  const encodeOpts = { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio };
   // Downgraded to CPU for the remainder once a hardware encode has failed.
   let active = encodeOpts;
   let fellBackToCpu = false;
@@ -289,9 +286,9 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
 // Render a short sample window with the given settings to outPath, for an
 // accurate "what will this look/sound like" preview (color, denoise/sharpen,
 // normalized audio). Uses the same pipeline as export.
-function renderPreview({ input, start, duration, outPath, correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio }, hooks = {}) {
+function renderPreview({ input, start, duration, outPath, correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio }, hooks = {}) {
   return encodeSegment(input, start, duration, outPath,
-    { correction, enhance, layout, quality, fps, audioDriftMs, encoder, normalizeAudio },
+    { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio },
     hooks.onProgress);
 }
 
