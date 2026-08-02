@@ -75,7 +75,7 @@ Your video stays on your computer. Detection, proxy building, previews, and expo
 2. **Detect the commercials.** Hit *Detect commercials*. Clips show up on the timeline, **green to keep**, **red to cut**.
 3. **Check its work.** Click a clip to play it. Flip keep/cut with a click or `K`. Drag the yellow edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
 4. **Pick what you're making.** **Commercials** or **the show**, as **one merged file** or **separate clips**.
-5. **Export.** Choose a folder and go. It always cuts from your original file at full quality; the proxy is only there to keep things quick while you work.
+5. **Export.** Choose a folder and go. It always cuts from your original file at full quality. Detection scans the small preview copy instead, which is much faster and finds the same breaks.
 
 <div align="center">
 

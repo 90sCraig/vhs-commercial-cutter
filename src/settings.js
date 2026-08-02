@@ -8,6 +8,11 @@ const DEFAULTS = {
   proxyCacheCapGB: 8,       // cap the proxy cache; LRU-evict beyond this
   encoder: 'cpu',           // 'cpu' | 'nvenc' | 'qsv' | 'amf'
   encoderDetected: false,   // set once the first-run hardware probe has run
+  // Scan the 480p proxy instead of the original. On a 2h 1080p60 capture over
+  // a network share this was 52s vs 413s for identical output: same 10 black
+  // events, same 8 confident boundaries, same 5 segments, boundaries within a
+  // second. Export always uses the original regardless.
+  detectOnProxy: true,
 };
 
 function file() {

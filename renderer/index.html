@@ -314,8 +314,10 @@
       </div>
       <div class="help-body">
         <h3>Preview proxy</h3>
-        <p>On import, a small low-res copy is built so scrubbing stays fast. Detection and export always use your full-quality original.</p>
+        <p>On import, a small low-res copy is built so scrubbing stays fast. Export always uses your full-quality original.</p>
         <label class="switch"><input id="setProxyEnabled" type="checkbox" /> <span>Build preview proxies automatically</span></label>
+        <label class="switch" style="margin-top:6px"><input id="setDetectOnProxy" type="checkbox" /> <span>Scan the preview when detecting commercials</span></label>
+        <small class="switch-note">Much faster, and black frames and silence read the same at low resolution. On a two-hour capture this was 52 seconds instead of 413, finding exactly the same breaks. Turn it off to scan the original instead.</small>
         <div class="field" style="margin-top:12px">
           <label>Cache limit <output id="setCapOut">8 GB</output></label>
           <input id="setCap" type="range" min="1" max="50" step="1" value="8" />
@@ -367,7 +369,7 @@
 
         <h3>Quick start</h3>
         <ol>
-          <li><b>Open a file</b> — click <em>Open file…</em> (top-right) or drag a video onto the player. A small preview builds in the background so scrubbing is fast — watch the badge at the top-left of the video. Detection and export always use your full-quality original, never the preview.</li>
+          <li><b>Open a file</b> — click <em>Open file…</em> (top-right) or drag a video onto the player. A small preview builds in the background so scrubbing is fast — watch the badge at the top-left of the video. Detection scans that preview because it's far quicker and finds the same breaks; export always uses your full-quality original.</li>
           <li><b>Detect commercials</b> — click <em>Detect commercials</em>. It scans for fade-to-black + audio silence (the marks between show and ads) and splits the tape into clips, with the ads defaulting to <b>save</b>.</li>
           <li><b>Review</b> — clips appear on the timeline and in the list, colored <span class="k">green = save</span> / <span class="c">red = skip</span>. Click one to play it, and fix any mistakes (see <em>Editing</em>).</li>
           <li><b>Choose what to export</b> — in Export, pick <em>Commercials</em> or <em>The show</em>, then <em>One merged file</em> or <em>Separate clips</em>.</li>

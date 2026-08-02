@@ -4,7 +4,8 @@ const { ffprobeInfo, FFMPEG, FFPROBE, beginJob, cancelJob } = require('./src/ffm
 const { detect, detectSample } = require('./src/detect');
 const { exportVideo, renderPreview } = require('./src/export');
 const os = require('os');
-const { ensureProxy, cacheSize, clearCache } = require('./src/proxy');
+const { ensureProxy, proxyPathFor, cacheSize, clearCache } = require('./src/proxy');
+const fs = require('fs');
 const settings = require('./src/settings');
 const { decodeAccel } = require('./src/encoders');
 const updater = require('./src/updater');
@@ -112,17 +113,29 @@ ipcMain.handle('video:probe', async (_e, filePath) => {
   return ffprobeInfo(filePath);
 });
 
+// Black frames and silence read the same at 480p, and the proxy is local
+// rather than across whatever drive the capture lives on. Falls back to the
+// original whenever a proxy isn't sitting ready. Export never uses this.
+function scanPathFor(filePath) {
+  if (settings.load().detectOnProxy === false) return filePath;
+  try {
+    const p = proxyPathFor(filePath);
+    if (fs.existsSync(p) && fs.statSync(p).size > 0) return p;
+  } catch (_) { /* no proxy — scan the original */ }
+  return filePath;
+}
+
 ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
   opts.hwaccel = decodeAccel(settings.load().encoder); // GPU-accelerated decode
   beginJob();
-  return keepAwake(() => detect(filePath, opts, {
+  return keepAwake(() => detect(scanPathFor(filePath), opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
   }));
 });
 
 ipcMain.handle('detect:sample', async (_e, { filePath, opts, range }) => {
   opts.hwaccel = decodeAccel(settings.load().encoder);
-  return detectSample(filePath, opts, range);
+  return detectSample(scanPathFor(filePath), opts, range);
 });
 
 let previewSeq = 0;

@@ -437,6 +437,7 @@ function renderSegmentList() {
       <span class="seg-dot ${segClass(seg)}"></span>
       <span class="seg-time">${String(idx + 1).padStart(2, '0')} · ${fmtTime(seg.start)} → ${fmtTime(seg.end)}</span>
       <span class="seg-dur">${fmtDur(seg.duration)}</span>
+      <span class="seg-cuts" title="Scene changes per minute. Ads tend to cut faster than the show.">${seg.cutsPerMin == null ? '' : seg.cutsPerMin + '/min'}</span>
       <span class="seg-tag ${segClass(seg)}">${seg.keep ? 'save' : 'skip'}</span>`;
     row.addEventListener('click', () => selectSegment(seg.id, { seek: true, play: true }));
     const tag = row.querySelector('.seg-tag');
@@ -814,6 +815,7 @@ async function refreshCacheSize() {
 async function initSettings() {
   state.settings = await window.api.getSettings();
   $('setProxyEnabled').checked = state.settings.proxyEnabled;
+  $('setDetectOnProxy').checked = state.settings.detectOnProxy !== false;
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
   $('setEncoder').value = state.settings.encoder;
@@ -839,6 +841,9 @@ async function initSettings() {
 
   $('setProxyEnabled').addEventListener('change', async () => {
     state.settings = await window.api.setSettings({ proxyEnabled: $('setProxyEnabled').checked });
+  });
+  $('setDetectOnProxy').addEventListener('change', async () => {
+    state.settings = await window.api.setSettings({ detectOnProxy: $('setDetectOnProxy').checked });
   });
   $('setCap').addEventListener('input', () => { $('setCapOut').textContent = $('setCap').value + ' GB'; });
   $('setCap').addEventListener('change', async () => {

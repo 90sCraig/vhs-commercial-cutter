@@ -2,8 +2,10 @@
 //
 // Heavy captures (large MKV, on a network drive) seek slowly in the built-in
 // player. We generate a small, local, short-GOP 480p MP4 once per source and
-// let the player use THAT for review. Detection and export always use the
-// full-quality original — the proxy is preview-only.
+// let the player use THAT for review. Export always uses the full-quality
+// original. Detection scans the proxy when one exists — black frames and
+// silence read the same at 480p, for a fraction of the work. See
+// settings.detectOnProxy.
 //
 // Proxies are cached in userData/proxies keyed by source path+size+mtime, so
 // re-opening a tape reuses the existing proxy instantly.
