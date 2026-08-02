@@ -60,7 +60,7 @@ Bugs, fixes, and ideas all go in [GitHub issues](https://github.com/90sCraig/vhs
 - **A timeline you can actually work in.** Zoom in, drag the cut points, split and merge clips, set in and out, step through frame by frame from the keyboard. There's a minimap for the wide view.
 - **Scrubs fast on huge files.** It builds a small proxy in the background so a giant MKV or a capture sitting on your network still plays smooth. The proxy cache is yours to control.
 - **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation, and gamma, fix the RGB balance, and pull the audio back in sync when it drifts.
-- **Exports how you want.** Keep the source shape or reframe to 4:3 for YouTube. Pick your quality, resolution, and frame rate, name the files yourself, or just hit the **Commercial clips** or **Keep the show** preset and go.
+- **Exports how you want.** Commercials or show, one merged file or separate clips. Keep the source shape or reframe to 4:3 for YouTube, pick a quality, and name the files yourself. Resolution and frame rate always match your source.
 - **Uses your GPU if you've got one.** NVIDIA, Intel, or AMD for encode and decode, on export, previews, and detection. Falls back to the CPU (x264) on its own when the hardware path isn't there, or if it gives out partway through a job.
 - **Safe to walk away from.** A long export keeps the machine awake, works next to your output folder instead of quietly filling the Windows drive, and tells you up front if there isn't room rather than dying an hour in.
 - **Nothing else to install.** FFmpeg ships inside the app.
@@ -80,7 +80,7 @@ Grab the latest [release](https://github.com/90sCraig/vhs-commercial-cutter/rele
 1. **Open a tape.** Click *Open capture…* or drag a video onto the player. MP4, MKV, AVI, MOV, and most other things.
 2. **Detect the commercials.** Hit *Detect commercials*. Clips show up on the timeline, **green to keep**, **red to cut**.
 3. **Check its work.** Click a clip to play it. Flip keep/cut with a click or `K`. Drag the yellow edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
-4. **Pick what you're making.** **🎬 Commercial clips** or **📺 Keep the show**.
+4. **Pick what you're making.** **Commercials** or **the show**, as **one merged file** or **separate clips**.
 5. **Export.** Choose a folder and go. It always cuts from your original file at full quality; the proxy is only there to keep things quick while you work.
 
 <div align="center">

@@ -637,22 +637,6 @@ function exportMode() {
 }
 function exportTarget() { return $('exportTarget').value; } // 'save' | 'skip'
 
-// Apply a one-click export preset, then reflect it in the controls.
-function applyPreset(name) {
-  const setMode = (v) => { document.querySelector(`input[name=mode][value=${v}]`).checked = true; };
-  if (name === 'social') {
-    $('exportTarget').value = 'save';
-    $('exportFrame').value = 'source';
-    setMode('split');
-  } else if (name === 'clean') {
-    $('exportTarget').value = 'skip';
-    $('exportFrame').value = 'source';
-    setMode('merged');
-  }
-  $('presetSocial').classList.toggle('active', name === 'social');
-  $('presetClean').classList.toggle('active', name === 'clean');
-  updateExportSummary();
-}
 // Resolution and frame rate always follow the source, so frame is the only
 // layout choice left.
 function exportLayout() {
@@ -1004,20 +988,11 @@ function init() {
   ['brightness', 'contrast', 'saturation', 'gamma', 'rgbR', 'rgbG', 'rgbB'].forEach((id) =>
     $(id).addEventListener('input', applyLiveColor));
 
-  const clearPresetChips = () => {
-    $('presetSocial').classList.remove('active');
-    $('presetClean').classList.remove('active');
-  };
   document.querySelectorAll('input[name=mode]').forEach((r) =>
-    r.addEventListener('change', () => { clearPresetChips(); updateExportSummary(); }));
-  $('exportTarget').addEventListener('change', () => { clearPresetChips(); updateExportSummary(); });
-  ['exportFrame', 'exportQuality'].forEach((id) =>
-    $(id).addEventListener('change', () => { clearPresetChips(); updateExportSummary(); }));
+    r.addEventListener('change', updateExportSummary));
+  ['exportTarget', 'exportFrame', 'exportQuality'].forEach((id) =>
+    $(id).addEventListener('change', updateExportSummary));
   $('exportName').addEventListener('input', updateExportSummary);
-
-  // one-click export presets
-  $('presetSocial').addEventListener('click', () => applyPreset('social'));
-  $('presetClean').addEventListener('click', () => applyPreset('clean'));
 
   bindSlider('blackThreshold', 'blackOut', (v) => (+v).toFixed(2));
   bindSlider('silenceDb', 'silenceOut', (v) => `${v} dB`);

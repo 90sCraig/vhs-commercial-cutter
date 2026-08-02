@@ -207,11 +207,7 @@
 
         <div class="card">
           <div class="card-title">3 · Export
-            <span class="info" tabindex="0" data-help="Render your result. Use a preset for the two common jobs, or set options by hand. 'Program' exports the show with commercials removed; 'Commercials' exports the ads. Export always uses the full-quality source.">i</span>
-          </div>
-          <div class="preset-row">
-            <button id="presetSocial" class="chip" title="Saved commercials → separate clips, source frame">🎬 Commercial clips</button>
-            <button id="presetClean" class="chip" title="The show → source frame, one merged file">📺 Keep the show</button>
+            <span class="info" tabindex="0" data-help="Render your result. Choose whether you want the commercials you saved or the show you skipped, then whether they come out as one merged file or separate clips. Export always uses the full-quality source.">i</span>
           </div>
           <div class="field">
             <label>What to export <span class="info" tabindex="0" data-help="Commercials = the clips you saved (green) — the ads themselves. The show = everything you skipped (red).">i</span></label>
@@ -373,14 +369,14 @@
           <li><b>Open a file</b> — click <em>Open file…</em> (top-right) or drag a video onto the player. A small preview builds in the background so scrubbing is fast — watch the badge at the top-left of the video. Detection and export always use your full-quality original, never the preview.</li>
           <li><b>Detect commercials</b> — click <em>Detect commercials</em>. It scans for fade-to-black + audio silence (the marks between show and ads) and splits the tape into clips, with the ads defaulting to <b>save</b>.</li>
           <li><b>Review</b> — clips appear on the timeline and in the list, colored <span class="k">green = save</span> / <span class="c">red = skip</span>. Click one to play it, and fix any mistakes (see <em>Editing</em>).</li>
-          <li><b>Pick a preset</b> — in Export, click <em>🎬 Commercial clips</em> (or <em>📺 Keep the show</em>).</li>
+          <li><b>Choose what to export</b> — in Export, pick <em>Commercials</em> or <em>The show</em>, then <em>One merged file</em> or <em>Separate clips</em>.</li>
           <li><b>Export</b> — choose an output folder if you like, then <em>Export</em>. Files save next to your source by default.</li>
         </ol>
 
         <h3>The two jobs</h3>
         <ul>
-          <li><b>🎬 Commercial clips</b> — the main event: exports your <b>saved commercials</b> as separate files, one per ad.</li>
-          <li><b>📺 Keep the show</b> — the reverse: exports the <b>skipped</b> program as one merged file, commercials removed.</li>
+          <li><b>Commercials</b> — the main event: exports the clips you <b>saved</b>. Separate clips gives you one file per ad; one merged file gives you the whole ad break in one.</li>
+          <li><b>The show</b> — the reverse: exports what you <b>skipped</b>, commercials removed. Usually one merged file.</li>
         </ul>
 
         <h3>Editing clips</h3>
