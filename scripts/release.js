@@ -54,11 +54,12 @@ run('npx', ['electron-builder', '--publish', 'never'], true);
 
 // Collect the artifacts the updater needs.
 const dist = path.join(root, 'dist');
+// These must match build.nsis.artifactName / build.portable.artifactName.
 const names = [
-  `90s-Craig-Edit-Booth-Setup-${version}.exe`,
-  `90s-Craig-Edit-Booth-Setup-${version}.exe.blockmap`,
+  `VHS-Commercial-Cutter-Setup-${version}.exe`,
+  `VHS-Commercial-Cutter-Setup-${version}.exe.blockmap`,
   'latest.yml',
-  `90s-Craig-Edit-Booth-Portable-${version}.exe`,
+  `VHS-Commercial-Cutter-Portable-${version}.exe`,
 ];
 const files = names.map((n) => path.join(dist, n));
 for (const f of files) {
