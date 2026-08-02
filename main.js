@@ -151,6 +151,7 @@ ipcMain.handle('job:abort', () => cancelJob());
 
 ipcMain.handle('proxy:ensure', async (_e, { filePath, duration }) => {
   const s = settings.load();
+  beginJob();  // so Cancel on the preview badge can stop it
   const cap = (s.proxyCacheCapGB || 0) * 1024 * 1024 * 1024;
   return ensureProxy(filePath, {
     onProgress: (secs) =>

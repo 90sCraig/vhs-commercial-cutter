@@ -96,13 +96,16 @@ async function loadFile(filePath) {
 }
 
 // ---- preview proxy ----------------------------------------------------
-function setProxyStatus(text, { spinning = false, ready = false, progress = null } = {}) {
+function setProxyStatus(text, { spinning = false, ready = false, progress = null, abortable = false } = {}) {
   const el = $('proxyStatus');
   if (!text) { el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
   el.classList.toggle('spinning', spinning);
   el.classList.toggle('ready', ready);
   $('proxyStatusText').textContent = text;
+  const abort = $('proxyAbort');
+  abort.classList.toggle('hidden', !abortable);
+  if (abortable) { abort.disabled = false; abort.textContent = 'Cancel'; }
   const bar = $('proxyBar');
   if (progress == null) {
     bar.classList.add('hidden');
@@ -117,7 +120,7 @@ async function buildProxyFor(filePath) {
     setProxyStatus(''); // proxies disabled — play the original directly
     return;
   }
-  setProxyStatus('Preparing preview…', { spinning: true });
+  setProxyStatus('Preparing preview…', { spinning: true, abortable: true });
   try {
     const res = await window.api.buildProxy(filePath, state.duration);
     if (state.filePath !== filePath) return; // user switched files meanwhile
@@ -136,7 +139,11 @@ async function buildProxyFor(filePath) {
     setProxyStatus('Preview ready', { ready: true });
     setTimeout(() => { if (state.usingProxy && state.filePath === filePath) setProxyStatus(''); }, 2500);
   } catch (e) {
-    setProxyStatus('Preview unavailable — using original', {});
+    // Cancelling is a choice, not a failure — say so differently. Either way
+    // the player keeps using the full-quality original.
+    if (isAbort(e)) setProxyStatus('Preview cancelled — using original', {});
+    else setProxyStatus('Preview unavailable — using original', {});
+    setTimeout(() => { if (state.filePath === filePath) setProxyStatus(''); }, 4000);
   }
 }
 
@@ -1018,7 +1025,13 @@ function init() {
   window.api.onDetectProgress((p) => setBar(p));
   window.api.onExportProgress((p) => setBar(p));
   window.api.onExportStatus((s) => { $('overlayStatus').textContent = s; });
-  window.api.onProxyProgress((p) => setProxyStatus(`Building preview ${Math.round(p * 100)}%`, { spinning: true, progress: p }));
+  window.api.onProxyProgress((p) => setProxyStatus(`Building preview ${Math.round(p * 100)}%`, { spinning: true, progress: p, abortable: true }));
+  $('proxyAbort').addEventListener('click', async () => {
+    const b = $('proxyAbort');
+    b.disabled = true;
+    b.textContent = 'Stopping…';
+    try { await window.api.abortJob(); } catch (_) { /* already finished */ }
+  });
 
   // drag & drop
   const wrap = document.querySelector('.player-wrap');

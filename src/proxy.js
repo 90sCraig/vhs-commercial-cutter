@@ -116,6 +116,7 @@ async function ensureProxy(src, hooks = {}, opts = {}) {
     } catch (e) {
       lastErr = e;
       try { fs.unlinkSync(tmp); } catch (_) {}
+      if (e.cancelled) throw e;  // aborted — do not restart on the CPU
       if (encoder !== 'cpu' && hooks.onFallback) hooks.onFallback();
     }
   }

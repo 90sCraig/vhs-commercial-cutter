@@ -134,6 +134,14 @@ body::after {
 @keyframes pulse { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
 .proxy-bar { width: 90px; height: 5px; background: rgba(255,255,255,0.15); border-radius: 3px; overflow: hidden; }
 .proxy-bar.hidden { display: none; }
+.proxy-abort {
+  font: inherit; font-size: 10px; letter-spacing: .5px; text-transform: uppercase;
+  padding: 2px 8px; cursor: pointer; color: var(--text);
+  background: var(--bg-3); border: 1px solid var(--line-hi); border-radius: 3px;
+}
+.proxy-abort:hover:not(:disabled) { border-color: var(--cut); color: var(--cut); }
+.proxy-abort:disabled { opacity: .6; cursor: default; }
+.proxy-abort.hidden { display: none; }
 #proxyBarFill { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); transition: width .2s; }
 .player-wrap.dragover { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
 .drop-hint { text-align: center; color: var(--muted); }
