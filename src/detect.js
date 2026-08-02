@@ -20,9 +20,26 @@ const DEFAULTS = {
   coincidenceTol: 1.0, // seconds: how close black & silence must be to "coincide"
   minCommercialLen: 8, // s: ignore boundary-gaps shorter than this (noise)
   maxCommercialLen: 360, // s: a content segment shorter than this is guessed commercial
+  // Scene-change rate, measured per segment and reported as cutsPerMin. Ads cut
+  // faster than programs, and on a test tape the gap was real (26.8/min across a
+  // known ad block vs 10.3-11.7 across program). It is NOT used to classify:
+  // length already got every segment right there, and no threshold pair moved
+  // anything without being fitted to that one tape. Kept because it costs
+  // almost nothing in the existing pass and is what any future tuning needs.
+  sceneDetect: true, // set false to skip scdet entirely
+  sceneThreshold: 10, // scdet t= (higher = fewer detections)
 };
 
-function parseEvents(line, black, silence) {
+function parseEvents(line, black, silence, scenes) {
+  // scdet logs one line per detected cut:
+  //   [scdet @ ...] lavfi.scd.score: 31.463, lavfi.scd.time: 18
+  if (scenes) {
+    const sc = line.match(/lavfi\.scd\.time:\s*(-?\d+(?:\.\d+)?)/);
+    if (sc) {
+      const t = parseFloat(sc[1]);
+      if (Number.isFinite(t) && t >= 0) scenes.push(t);
+    }
+  }
   // blackdetect prints black_start and black_end together on ONE line:
   //   black_start:18 black_end:20 black_duration:2
   const bs = line.match(/black_start:(\d+(?:\.\d+)?)/);
@@ -69,14 +86,27 @@ function buildBoundaries(black, silence, opts) {
   return boundaries;
 }
 
+// Cuts per minute inside [start, end), from the sorted scene-change times.
+function cutRate(scenes, start, end) {
+  const len = end - start;
+  if (!scenes || !scenes.length || len <= 0) return null;
+  let n = 0;
+  for (const t of scenes) {
+    if (t >= end) break;
+    if (t >= start) n += 1;
+  }
+  return (n / len) * 60;
+}
+
 // Turn boundaries into content segments between them.
-function buildSegments(boundaries, duration, opts) {
+function buildSegments(boundaries, duration, opts, scenes) {
   const segs = [];
   let cursor = 0;
   let id = 0;
   const pushSeg = (start, end) => {
     const len = end - start;
     if (len < opts.minCommercialLen) return; // skip micro-gaps (noise)
+    const rate = cutRate(scenes, start, end);
     segs.push({
       id: id++,
       start,
@@ -86,6 +116,7 @@ function buildSegments(boundaries, duration, opts) {
       // always ads, so they default to SAVE; long program blocks default to SKIP.
       // (`keep` = "included in the export".)
       keep: len < opts.maxCommercialLen,
+      cutsPerMin: rate == null ? null : Math.round(rate * 10) / 10,
       confidentBoundary: true,
     });
   };
@@ -110,20 +141,24 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
 
   const black = [];
   const silence = [];
+  const scenes = [];
 
-  const vf = `blackdetect=d=${opts.blackDuration}:pix_th=${opts.blackThreshold}`;
+  let vf = `blackdetect=d=${opts.blackDuration}:pix_th=${opts.blackThreshold}`;
+  // scdet logs a line per cut and passes every frame through, so progress
+  // reporting is unaffected.
+  if (opts.sceneDetect) vf += `,scdet=t=${opts.sceneThreshold}`;
   const af = `silencedetect=n=${opts.silenceDb}dB:d=${opts.silenceDuration}`;
   const NUL = process.platform === 'win32' ? 'NUL' : '/dev/null';
 
   // Detection decodes + analyzes (no encoding). A GPU can accelerate the decode;
   // if that path fails, we transparently retry with plain CPU decode.
   const runPass = (hwaccel) => {
-    black.length = 0; silence.length = 0;
+    black.length = 0; silence.length = 0; scenes.length = 0;
     const args = ['-hide_banner'];
     if (hwaccel) args.push('-hwaccel', hwaccel);
     args.push('-i', filePath, '-vf', vf, '-af', af, '-f', 'null', NUL);
     return runFfmpeg(args, {
-      onLine: (line) => parseEvents(line, black, silence),
+      onLine: (line) => parseEvents(line, black, silence, scenes),
       onProgress: (secs) => {
         if (hooks.onProgress && duration) hooks.onProgress(Math.min(1, secs / duration));
       },
@@ -138,8 +173,9 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
     else throw e;
   }
 
+  scenes.sort((a, b) => a - b);
   const boundaries = buildBoundaries(black, silence, opts);
-  const segments = buildSegments(boundaries, duration, opts);
+  const segments = buildSegments(boundaries, duration, opts, scenes);
 
   return {
     info,
@@ -149,6 +185,7 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
     stats: {
       blackEvents: black.length,
       silenceEvents: silence.length,
+      sceneChanges: scenes.length,
       confidentBoundaries: boundaries.filter((b) => b.confident).length,
     },
     opts,
