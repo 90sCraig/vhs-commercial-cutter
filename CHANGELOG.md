@@ -8,7 +8,7 @@
 
 **Detection settings are remembered.** Thresholds and your preset choice survive a restart instead of resetting every session.
 
-**Scene-change rate per clip.** Each segment in the list now shows how many times a second it cuts. Commercials cut faster than programmes — on a test tape, ads ran at 27 cuts per minute against about 10 for the show — which makes it a useful second opinion when you're deciding whether the detector got a clip right. It's shown for you to read; it doesn't change what gets saved.
+**Scene-change rate per clip.** Each segment in the list now shows how many times a minute it cuts. Commercials cut faster than programmes — on a test tape, ads ran at 27 cuts per minute against about 10 for the show — which makes it a useful second opinion when you're deciding whether the detector got a clip right. It's shown for you to read; it doesn't change what gets saved.
 
 **Timeline fixes.**
 
