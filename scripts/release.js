@@ -66,12 +66,38 @@ for (const f of files) {
   if (!fs.existsSync(f)) { console.error(`✗ Missing build artifact: ${f}`); process.exit(1); }
 }
 
+// Release notes come from the matching "## <version>" section of CHANGELOG.md
+// when there is one, so the GitHub release says what changed instead of just
+// repeating its own version number.
+function notesFor(v) {
+  const changelog = path.join(root, 'CHANGELOG.md');
+  if (!fs.existsSync(changelog)) return null;
+  const lines = fs.readFileSync(changelog, 'utf8').split(/\r?\n/);
+  const start = lines.findIndex((l) => l.trim() === `## ${v}`);
+  if (start === -1) return null;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (lines[i].startsWith('## ')) { end = i; break; }
+  }
+  return lines.slice(start + 1, end).join('\n').trim() || null;
+}
+
+const notes = notesFor(version);
+if (!notes) console.warn(`⚠ No CHANGELOG.md section for ${version} — publishing a bare note.`);
+const notesArgs = ['--notes', `Release ${version}.`];
+if (notes) {
+  const notesFile = path.join(dist, 'release-notes.md');
+  fs.writeFileSync(notesFile, notes, 'utf8');
+  notesArgs.length = 0;
+  notesArgs.push('--notes-file', notesFile);
+}
+
 // Create the GitHub release (published, not a draft).
 run(gh, [
   'release', 'create', tag, ...files,
   '--repo', REPO,
   '--title', `VHS Commercial Cutter ${version}`,
-  '--notes', `Release ${version}.`,
+  ...notesArgs,
 ], false);
 
 console.log(`\n✓ Published ${tag}`);
