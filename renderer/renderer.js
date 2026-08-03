@@ -148,6 +148,65 @@ async function buildProxyFor(filePath) {
 }
 
 // ---- detection --------------------------------------------------------
+// Starting points along one axis: how readily a fade counts as a break.
+// Both thresholds move together because tape wear degrades both signals — a
+// worn tape has grainy near-black AND hiss on the audio floor, and a boundary
+// needs the two to coincide, so loosening one alone finds nothing.
+//
+// Min gap RISES as strength rises: a looser detector throws more spurious
+// boundaries, so the noise filter has to work harder to stop the tape
+// shattering into fragments.
+//
+// Max commercial length is identical in all four on purpose. It describes how
+// the broadcast was structured, not how hard we are looking.
+const DETECT_PRESETS = {
+  strict: { blackThreshold: 0.06, silenceDb: -35, minCommercial: 8, maxCommercial: 360 },
+  balanced: { blackThreshold: 0.10, silenceDb: -30, minCommercial: 8, maxCommercial: 360 },
+  sensitive: { blackThreshold: 0.16, silenceDb: -25, minCommercial: 10, maxCommercial: 360 },
+  aggressive: { blackThreshold: 0.22, silenceDb: -20, minCommercial: 12, maxCommercial: 360 },
+};
+
+const DETECT_SLIDERS = ['blackThreshold', 'silenceDb', 'minCommercial', 'maxCommercial'];
+
+// Push the remembered thresholds back into the controls on startup. Safe to run
+// before or after bindSlider: dispatching 'input' updates the readout if the
+// binding already exists, and bindSlider reads the current value if it doesn't.
+function applySavedDetect() {
+  const d = (state.settings && state.settings.detect) || {};
+  applyingPreset = true;
+  for (const id of DETECT_SLIDERS) {
+    if (d[id] != null) { $(id).value = d[id]; $(id).dispatchEvent(new Event('input')); }
+  }
+  applyingPreset = false;
+  if (d.preset) $('detectPreset').value = d.preset;
+}
+
+async function saveDetectSettings() {
+  state.settings = await window.api.setSettings({
+    detect: {
+      preset: $('detectPreset').value,
+      blackThreshold: parseFloat($('blackThreshold').value),
+      silenceDb: parseInt($('silenceDb').value, 10),
+      minCommercial: parseInt($('minCommercial').value, 10),
+      maxCommercial: parseInt($('maxCommercial').value, 10),
+    },
+  });
+}
+
+let applyingPreset = false;
+function applyDetectPreset(name) {
+  const p = DETECT_PRESETS[name];
+  if (!p) return; // 'custom' — leave the sliders where the user put them
+  applyingPreset = true;
+  for (const [id, v] of Object.entries(p)) {
+    const el = $(id);
+    if (!el) continue;
+    el.value = v;
+    el.dispatchEvent(new Event('input')); // refresh the readout next to the label
+  }
+  applyingPreset = false;
+}
+
 function detectOpts() {
   return {
     blackThreshold: parseFloat($('blackThreshold').value),
@@ -238,14 +297,24 @@ function renderTimeline() {
     el.style.left = (seg.start / dur * 100) + '%';
     el.style.width = (Math.max(0, seg.duration) / dur * 100) + '%';
     if (state.selected === seg.id) el.classList.add('selected');
-    el.title = `${fmtTime(seg.start)}–${fmtTime(seg.end)} (${fmtDur(seg.duration)}) · ${seg.keep ? 'save' : 'skip'}`;
+    el.title = `${fmtTime(seg.start)}–${fmtTime(seg.end)} (${fmtDur(seg.duration)}) · ${seg.keep ? 'save' : 'skip'}`
+      + `\nClick to select · double-click to switch to ${seg.keep ? 'skip' : 'save'}`;
     el.addEventListener('click', () => selectSegment(seg.id, { seek: true }));
     el.addEventListener('dblclick', () => toggleSegment(seg.id));
     tl.appendChild(el);
   }
   // Draggable handles at each internal boundary (segments are contiguous).
+  // Zoomed out on a tape with many breaks they crowd together, stop reading as
+  // handles, and start looking like yellow segments of their own — so skip any
+  // that wouldn't have room to be grabbed. Zooming in brings them back.
+  const trackPx = ($('timelineScroll').clientWidth || 800) * (state.zoom || 1);
+  const MIN_HANDLE_GAP_PX = 14;
+  let lastHandlePx = -Infinity;
   for (let i = 0; i < state.segments.length - 1; i++) {
     const bTime = state.segments[i].end;
+    const px = (bTime / dur) * trackPx;
+    if (px - lastHandlePx < MIN_HANDLE_GAP_PX) continue;
+    lastHandlePx = px;
     const h = document.createElement('div');
     h.className = 'bhandle';
     h.style.left = (bTime / dur * 100) + '%';
@@ -408,6 +477,13 @@ function zoomByButton(factor) {
   zoomAround(state.zoom * factor, ratio, vx);
 }
 
+// Bring the matching row in the list below into view, so selecting a clip on
+// the timeline doesn't leave you hunting for it among eighty others.
+function scrollSegRowIntoView(id) {
+  const row = $('segmentList').querySelector(`[data-seg-id="${id}"]`);
+  if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+}
+
 function scrollSegIntoView(seg) {
   if (state.zoom <= 1) return;
   const scroll = $('timelineScroll');
@@ -433,12 +509,13 @@ function renderSegmentList() {
   state.segments.forEach((seg, idx) => {
     const row = document.createElement('div');
     row.className = 'seg-row' + (state.selected === seg.id ? ' selected' : '');
+    row.dataset.segId = seg.id;
     row.innerHTML = `
       <span class="seg-dot ${segClass(seg)}"></span>
       <span class="seg-time">${String(idx + 1).padStart(2, '0')} · ${fmtTime(seg.start)} → ${fmtTime(seg.end)}</span>
       <span class="seg-dur">${fmtDur(seg.duration)}</span>
       <span class="seg-cuts" title="Scene changes per minute. Ads tend to cut faster than the show.">${seg.cutsPerMin == null ? '' : seg.cutsPerMin + '/min'}</span>
-      <span class="seg-tag ${segClass(seg)}">${seg.keep ? 'save' : 'skip'}</span>`;
+      <span class="seg-tag ${segClass(seg)}" title="Click to switch to ${seg.keep ? 'skip' : 'save'}">${seg.keep ? 'save' : 'skip'}</span>`;
     row.addEventListener('click', () => selectSegment(seg.id, { seek: true, play: true }));
     const tag = row.querySelector('.seg-tag');
     tag.addEventListener('click', (e) => { e.stopPropagation(); toggleSegment(seg.id); });
@@ -470,7 +547,7 @@ function selectSegment(id, { seek = false, play = false } = {}) {
     state.previewReturnTime = seg ? seg.start + 0.03 : 0;
     exitSamplePreview();
     renderTimeline(); renderSegmentList();
-    if (seg) scrollSegIntoView(seg);
+    if (seg) { scrollSegIntoView(seg); scrollSegRowIntoView(id); }
     return;
   }
   if (seg) {
@@ -480,7 +557,7 @@ function selectSegment(id, { seek = false, play = false } = {}) {
   }
   renderTimeline();
   renderSegmentList();
-  if (seg) scrollSegIntoView(seg);
+  if (seg) { scrollSegIntoView(seg); scrollSegRowIntoView(id); }
 }
 
 function toggleSegment(id) {
@@ -816,6 +893,7 @@ async function initSettings() {
   state.settings = await window.api.getSettings();
   $('setProxyEnabled').checked = state.settings.proxyEnabled;
   $('setDetectOnProxy').checked = state.settings.detectOnProxy !== false;
+  applySavedDetect();
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
   $('setEncoder').value = state.settings.encoder;
@@ -1010,6 +1088,21 @@ function init() {
   bindSlider('silenceDb', 'silenceOut', (v) => `${v} dB`);
   bindSlider('minCommercial', 'minCommercialOut', (v) => `${v} s`);
   bindSlider('maxCommercial', 'maxCommercialOut', (v) => `${(v / 60).toFixed(1)} min`);
+
+  $('detectPreset').addEventListener('change', () => {
+    applyDetectPreset($('detectPreset').value);
+    saveDetectSettings();
+  });
+  DETECT_SLIDERS.forEach((id) => {
+    // Touching a slider by hand means you're no longer on a preset. Guarded so
+    // the preset applying itself doesn't immediately flip the label to Custom.
+    $(id).addEventListener('input', () => {
+      if (!applyingPreset) $('detectPreset').value = 'custom';
+    });
+    // Persist on 'change' rather than 'input' — 'input' fires continuously
+    // while dragging and would hammer the settings file.
+    $(id).addEventListener('change', saveDetectSettings);
+  });
   bindSlider('brightness', 'brightnessOut', (v) => (+v).toFixed(2));
   bindSlider('contrast', 'contrastOut', (v) => (+v).toFixed(2));
   bindSlider('saturation', 'saturationOut', (v) => (+v).toFixed(2));

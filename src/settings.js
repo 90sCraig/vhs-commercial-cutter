@@ -13,6 +13,15 @@ const DEFAULTS = {
   // events, same 8 confident boundaries, same 5 segments, boundaries within a
   // second. Export always uses the original regardless.
   detectOnProxy: true,
+  // Detection thresholds, remembered between sessions. Tuning these against
+  // your own tapes is the whole workflow, so losing them on quit is hostile.
+  detect: {
+    preset: 'balanced',
+    blackThreshold: 0.10,
+    silenceDb: -30,
+    minCommercial: 8,
+    maxCommercial: 360,
+  },
 };
 
 function file() {
@@ -21,9 +30,12 @@ function file() {
 
 function load() {
   try {
-    return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(file(), 'utf8')) };
+    const saved = JSON.parse(fs.readFileSync(file(), 'utf8'));
+    // The spread is shallow, so `detect` has to be merged on its own or a file
+    // written by an older version would drop whichever keys it predates.
+    return { ...DEFAULTS, ...saved, detect: { ...DEFAULTS.detect, ...(saved.detect || {}) } };
   } catch (_) {
-    return { ...DEFAULTS };
+    return { ...DEFAULTS, detect: { ...DEFAULTS.detect } };
   }
 }
 

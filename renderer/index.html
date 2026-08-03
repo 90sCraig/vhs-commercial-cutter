@@ -92,6 +92,16 @@
             <span class="info" tabindex="0" data-help="Scans the tape for fade-to-black plus audio silence — the marks TV stations put between the show and the ads — and splits it into clips. Click 'Detect commercials' to run it. Tune the sliders below if it misses or over-splits.">i</span>
           </div>
           <div class="field">
+            <label>Detection strength <span class="info" tabindex="0" data-help="How hard it looks for a break. Stricter wants near-black and near-silence, so it finds fewer breaks but rarely invents one. More sensitive accepts grainy black and tape hiss, which is what a worn tape gives you — at the cost of splitting on dark, quiet moments in the show. Missed breaks? Go up a step. Too many cuts? Go down. These are starting points, not measurements — scrub to a break and use 'Test here' before scanning the whole tape.">i</span></label>
+            <select id="detectPreset">
+              <option value="strict">Strict — clean tape, crisp fades</option>
+              <option value="balanced" selected>Balanced — most tapes</option>
+              <option value="sensitive">Sensitive — worn tape, grainy black</option>
+              <option value="aggressive">Aggressive — last resort, expect over-splitting</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="field">
             <label>Black sensitivity <output id="blackOut">0.10</output></label>
             <input id="blackThreshold" type="range" min="0.02" max="0.30" step="0.01" value="0.10" />
             <small>Higher = treats darker (not pure black) frames as boundaries.</small>

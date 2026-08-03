@@ -343,9 +343,18 @@ select:focus { outline: none; border-color: var(--accent); }
 .seg-time { font-family: var(--mono); color: var(--text); }
 .seg-dur { font-family: var(--mono); color: var(--muted); }
 .seg-cuts { font-family: var(--mono); font-size: 10.5px; color: var(--muted); opacity: .75; min-width: 52px; text-align: right; }
-.seg-tag { font-size: 10px; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .5px; }
+.seg-tag {
+  font-size: 10px; padding: 2px 8px; border-radius: 20px; text-transform: uppercase;
+  letter-spacing: .5px; cursor: pointer; border: 1px solid transparent;
+  transition: filter .12s, border-color .12s;
+}
+.seg-tag::after { content: ' ⇄'; opacity: 0; transition: opacity .12s; }
+.seg-row:hover .seg-tag::after { opacity: .55; }
+.seg-tag:hover { filter: brightness(1.35); }
 .seg-tag.keep { background: rgba(61,220,151,0.16); color: var(--keep); }
+.seg-tag.keep:hover { border-color: var(--cut); }
 .seg-tag.cut { background: rgba(255,107,107,0.16); color: var(--cut); }
+.seg-tag.cut:hover { border-color: var(--keep); }
 
 /* Overlay */
 .overlay { position: fixed; inset: 0; background: rgba(10,8,14,0.8); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 50; }
