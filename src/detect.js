@@ -1,10 +1,14 @@
 // Commercial detection.
 //
-// Strategy (robust multi-signal): broadcasters almost always fade to BLACK and
-// drop AUDIO at the boundary between program and a commercial pod. We run a
-// single ffmpeg pass with both blackdetect and silencedetect, then treat a
-// black interval that COINCIDES with silence as a high-confidence boundary.
-// Black-only or silence-only events are kept as lower-confidence hints.
+// Strategy: broadcasters almost always fade to BLACK and drop AUDIO at the
+// boundary between program and a commercial pod. We run a single ffmpeg pass
+// with both blackdetect and silencedetect.
+//
+// Boundaries come from black intervals ONLY. One that coincides with silence
+// is flagged confident; black without silence still becomes a boundary, just
+// unflagged. Silence on its own is discarded, which is a real limitation
+// rather than a design choice: black is the scarce signal on a worn tape, and
+// a two-hour test capture produced 10 black events against 1018 silences.
 //
 // The boundaries split the recording into content segments. We then classify
 // each segment as "keep" (program) or "cut" (commercial) using a length
@@ -103,6 +107,10 @@ function buildSegments(boundaries, duration, opts, scenes) {
   const segs = [];
   let cursor = 0;
   let id = 0;
+  // Whether the boundary this segment STARTS at had silence to back it up.
+  // The first segment starts at the head of the tape, where there is no
+  // boundary to judge, so it counts as certain.
+  let openedConfident = true;
   const pushSeg = (start, end) => {
     const len = end - start;
     if (len < opts.minCommercialLen) return; // skip micro-gaps (noise)
@@ -117,12 +125,13 @@ function buildSegments(boundaries, duration, opts, scenes) {
       // (`keep` = "included in the export".)
       keep: len < opts.maxCommercialLen,
       cutsPerMin: rate == null ? null : Math.round(rate * 10) / 10,
-      confidentBoundary: true,
+      confidentBoundary: openedConfident,
     });
   };
   for (const b of boundaries) {
     pushSeg(cursor, b.start);
     cursor = b.end;
+    openedConfident = b.confident;
   }
   pushSeg(cursor, duration);
 
