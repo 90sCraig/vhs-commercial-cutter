@@ -676,7 +676,10 @@ async function renderSamplePreview() {
   setProxyStatus('Rendering preview…', { spinning: true });
   try {
     const out = await window.api.renderPreview({
-      filePath: state.filePath,
+      // renderPreview() destructures `input` — sending `filePath` silently
+      // handed ffmpeg undefined. Preview deliberately uses the original, not
+      // the proxy: the point is to show exactly what export will produce.
+      input: state.filePath,
       start,
       duration: 6,
       correction: colorSettings(),
