@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, powerSaveBlocker } = require('electron');
 const path = require('path');
 const { ffprobeInfo, FFMPEG, FFPROBE, beginJob, cancelJob } = require('./src/ffmpeg');
-const { detect, detectSample } = require('./src/detect');
+const { detect, detectSample, calibrate } = require('./src/detect');
 const { exportVideo, renderPreview } = require('./src/export');
 const os = require('os');
 const { ensureProxy, proxyPathFor, cacheSize, clearCache } = require('./src/proxy');
@@ -136,6 +136,15 @@ ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
 ipcMain.handle('detect:sample', async (_e, { filePath, opts, range }) => {
   opts.hwaccel = decodeAccel(settings.load().encoder);
   return detectSample(scanPathFor(filePath), opts, range);
+});
+
+ipcMain.handle('detect:calibrate', async (_e, { filePath, opts }) => {
+  opts.hwaccel = decodeAccel(settings.load().encoder);
+  beginJob();
+  return keepAwake(() => calibrate(scanPathFor(filePath), opts, {
+    onProgress: (p) => win.webContents.send('detect:progress', p),
+    onStatus: (s) => win.webContents.send('export:status', s),
+  }));
 });
 
 let previewSeq = 0;

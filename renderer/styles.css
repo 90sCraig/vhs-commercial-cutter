@@ -142,6 +142,12 @@ body::after {
 .proxy-abort:hover:not(:disabled) { border-color: var(--cut); color: var(--cut); }
 .proxy-abort:disabled { opacity: .6; cursor: default; }
 .proxy-abort.hidden { display: none; }
+.experimental.hidden { display: none; }
+.exp-tag {
+  font-size: 8.5px; letter-spacing: .5px; text-transform: uppercase;
+  padding: 1px 5px; margin-left: 6px; border-radius: 3px; vertical-align: 1px;
+  background: rgba(207,159,69,0.18); color: var(--boundary);
+}
 #proxyBarFill { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); transition: width .2s; }
 .player-wrap.dragover { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
 .drop-hint { text-align: center; color: var(--muted); }

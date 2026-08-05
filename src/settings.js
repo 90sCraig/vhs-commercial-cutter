@@ -13,6 +13,9 @@ const DEFAULTS = {
   // events, same 8 confident boundaries, same 5 segments, boundaries within a
   // second. Export always uses the original regardless.
   detectOnProxy: true,
+  // Reveals features that aren't finished being validated. Off by default so
+  // nobody trusts an answer the app isn't confident in yet.
+  experimental: false,
   // Detection thresholds, remembered between sessions. Tuning these against
   // your own tapes is the whole workflow, so losing them on quit is hostile.
   detect: {

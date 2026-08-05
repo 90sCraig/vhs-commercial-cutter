@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('api', {
   probe: (filePath) => ipcRenderer.invoke('video:probe', filePath),
   detect: (filePath, opts) => ipcRenderer.invoke('detect:run', { filePath, opts }),
   detectSample: (filePath, opts, range) => ipcRenderer.invoke('detect:sample', { filePath, opts, range }),
+  calibrate: (filePath, opts) => ipcRenderer.invoke('detect:calibrate', { filePath, opts }),
   export: (payload) => ipcRenderer.invoke('export:run', payload),
   abortJob: () => ipcRenderer.invoke('job:abort'),
   renderPreview: (payload) => ipcRenderer.invoke('preview:render', payload),

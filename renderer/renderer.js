@@ -79,6 +79,7 @@ async function loadFile(filePath) {
     state.duration = state.info.duration;
     $('detectBtn').disabled = false;
     $('sampleBtn').disabled = false;
+    $('calibrateBtn').disabled = false;
     $('previewSampleBtn').disabled = false;
     state.sampleBoundaries = []; state.sampleRange = null;
     state.inSamplePreview = false; $('previewBanner').classList.add('hidden');
@@ -247,6 +248,49 @@ async function runSample() {
 
 // The job runs in the main process, so IPC wraps its error — match the message.
 function isAbort(e) { return /Cancelled/i.test((e && e.message) || ''); }
+
+// Anything marked [data-experimental] is hidden unless the setting is on.
+// One switch for all of it, so a new half-finished feature just needs the
+// attribute rather than its own plumbing.
+function applyExperimental() {
+  const on = state.settings && state.settings.experimental === true;
+  document.querySelectorAll('[data-experimental]').forEach((el) =>
+    el.classList.toggle('hidden', !on));
+}
+
+// Measure this tape and set the black threshold to suit it. The right value
+// varies enough between tapes that a fixed default is wrong for some of them.
+async function runCalibrate() {
+  if (!state.filePath) return;
+  $('player').pause();
+  $('calibrateBtn').disabled = true;
+  $('calibrateStatus').textContent = 'Calibrating…';
+  showOverlay('Calibrating…', 'Sampling the tape at several sensitivities');
+  setBar(0);
+  try {
+    const res = await window.api.calibrate(state.filePath, detectOpts());
+    if (res.inconclusive) {
+      $('calibrateStatus').textContent = 'No breaks in the sampled stretch';
+      toast('Calibration found no breaks in that part of the tape — the sliders are unchanged.', true);
+      return;
+    }
+    applyingPreset = true;
+    $('blackThreshold').value = res.threshold;
+    $('blackThreshold').dispatchEvent(new Event('input'));
+    applyingPreset = false;
+    $('detectPreset').value = 'custom';
+    saveDetectSettings();
+    const top = res.rungs[res.rungs.length - 1];
+    $('calibrateStatus').textContent = `Set to ${res.threshold.toFixed(2)}`;
+    toast(`Calibrated: black sensitivity ${res.threshold.toFixed(2)} (${top.blackEvents} candidates examined).`);
+  } catch (e) {
+    if (isAbort(e)) { $('calibrateStatus').textContent = 'Cancelled'; toast('Calibration aborted.'); }
+    else { $('calibrateStatus').textContent = 'Failed'; toast('Calibration failed: ' + e.message, true); }
+  } finally {
+    $('calibrateBtn').disabled = false;
+    hideOverlay();
+  }
+}
 
 async function runDetect() {
   if (!state.filePath) return;
@@ -896,6 +940,8 @@ async function initSettings() {
   state.settings = await window.api.getSettings();
   $('setProxyEnabled').checked = state.settings.proxyEnabled;
   $('setDetectOnProxy').checked = state.settings.detectOnProxy !== false;
+  $('setExperimental').checked = state.settings.experimental === true;
+  applyExperimental();
   applySavedDetect();
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
@@ -925,6 +971,10 @@ async function initSettings() {
   });
   $('setDetectOnProxy').addEventListener('change', async () => {
     state.settings = await window.api.setSettings({ detectOnProxy: $('setDetectOnProxy').checked });
+  });
+  $('setExperimental').addEventListener('change', async () => {
+    state.settings = await window.api.setSettings({ experimental: $('setExperimental').checked });
+    applyExperimental(); // takes effect straight away, no restart
   });
   $('setCap').addEventListener('input', () => { $('setCapOut').textContent = $('setCap').value + ' GB'; });
   $('setCap').addEventListener('change', async () => {
@@ -990,6 +1040,7 @@ function init() {
     if (f) loadFile(f);
   });
   $('detectBtn').addEventListener('click', runDetect);
+  $('calibrateBtn').addEventListener('click', runCalibrate);
   $('overlayAbort').addEventListener('click', async () => {
     const b = $('overlayAbort');
     b.disabled = true;                 // killing is quick, but do not queue clicks

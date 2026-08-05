@@ -32,6 +32,7 @@ const DEFAULTS = {
   // almost nothing in the existing pass and is what any future tuning needs.
   sceneDetect: true, // set false to skip scdet entirely
   sceneThreshold: 10, // scdet t= (higher = fewer detections)
+  calibrateWindow: 1200, // s: how much tape to sample when calibrating
 };
 
 function parseEvents(line, black, silence, scenes) {
@@ -143,11 +144,10 @@ function buildSegments(boundaries, duration, opts, scenes) {
   return segs;
 }
 
-async function detect(filePath, userOpts = {}, hooks = {}) {
-  const opts = { ...DEFAULTS, ...userOpts };
-  const info = await ffprobeInfo(filePath);
-  const duration = info.duration;
-
+// One analysis pass: decode the file and collect black, silence and scene-cut
+// events. Shared by detect() and calibrate(). Decoding can be GPU-accelerated;
+// if that path fails we retry on plain CPU decode.
+async function scanEvents(filePath, opts, duration, hooks = {}, range = null) {
   const black = [];
   const silence = [];
   const scenes = [];
@@ -159,13 +159,16 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
   const af = `silencedetect=n=${opts.silenceDb}dB:d=${opts.silenceDuration}`;
   const NUL = process.platform === 'win32' ? 'NUL' : '/dev/null';
 
-  // Detection decodes + analyzes (no encoding). A GPU can accelerate the decode;
-  // if that path fails, we transparently retry with plain CPU decode.
   const runPass = (hwaccel) => {
     black.length = 0; silence.length = 0; scenes.length = 0;
     const args = ['-hide_banner'];
     if (hwaccel) args.push('-hwaccel', hwaccel);
-    args.push('-i', filePath, '-vf', vf, '-af', af, '-f', 'null', NUL);
+    // -ss before -i = fast seek; timestamps come back relative to the slice
+    // and get shifted below.
+    if (range) args.push('-ss', String(range.start));
+    args.push('-i', filePath);
+    if (range) args.push('-t', String(range.duration));
+    args.push('-vf', vf, '-af', af, '-f', 'null', NUL);
     return runFfmpeg(args, {
       onLine: (line) => parseEvents(line, black, silence, scenes),
       onProgress: (secs) => {
@@ -182,7 +185,22 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
     else throw e;
   }
 
+  if (range) {
+    // Slice-relative timestamps back to absolute timeline positions.
+    for (const b of black) { b.start += range.start; if (b.end != null) b.end += range.start; }
+    for (const s of silence) { s.start += range.start; if (s.end != null) s.end += range.start; }
+    for (let i = 0; i < scenes.length; i++) scenes[i] += range.start;
+  }
   scenes.sort((a, b) => a - b);
+  return { black, silence, scenes };
+}
+
+async function detect(filePath, userOpts = {}, hooks = {}) {
+  const opts = { ...DEFAULTS, ...userOpts };
+  const info = await ffprobeInfo(filePath);
+  const duration = info.duration;
+
+  const { black, silence, scenes } = await scanEvents(filePath, opts, duration, hooks);
   const boundaries = buildBoundaries(black, silence, opts);
   const segments = buildSegments(boundaries, duration, opts, scenes);
 
@@ -203,6 +221,79 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
 
 // Sample detection: scan only a [start, start+duration] window so you can
 // tune thresholds against a known commercial break without processing the
+// Threshold ladder for calibration.
+//
+// There is no universally right black threshold: two tapes from the same
+// collection and deck put the knee in different places. One found 10 events at
+// 0.10 and 59 at 0.16; the other already found 109 at 0.10. A fixed default is
+// wrong for one of them whichever value it takes.
+//
+// So measure the tape instead. Walk upward and, at each rung, look at what the
+// step ADDED — if those new black events are still mostly backed by silence
+// they are real breaks; once they stop coinciding you have crossed from
+// finding breaks into finding noise. Stop at the last good rung.
+//
+// Checked against both tapes' measured sweeps: picks 0.16 and 0.10 correctly.
+const CALIBRATION_LADDER = [0.06, 0.10, 0.16, 0.22, 0.30];
+
+function pickThreshold(rungs, floor = 0.7, minAdded = 5) {
+  let best = rungs[0];
+  let anchor = rungs[0]; // last rung there was enough evidence to judge against
+  for (let i = 1; i < rungs.length; i++) {
+    const addedEvents = rungs[i].blackEvents - anchor.blackEvents;
+    const addedSilent = rungs[i].coinciding - anchor.coinciding;
+    // Too few new events to judge a rate on. Keep the anchor where it is and
+    // let the next rung accumulate against it, rather than accepting this one
+    // on no evidence. Advancing `best` here would walk to the top of the ladder
+    // on any tape whose steps are individually small — which is every tape,
+    // once you are sampling a window instead of the whole thing.
+    if (addedEvents < minAdded) continue;
+    if (addedSilent / addedEvents < floor) break;
+    best = rungs[i];
+    anchor = rungs[i];
+  }
+  return best;
+}
+
+// Sample a window of tape at each rung and report the threshold that suits it.
+async function calibrate(filePath, userOpts = {}, hooks = {}) {
+  const opts = { ...DEFAULTS, ...userOpts, sceneDetect: false };
+  const info = await ffprobeInfo(filePath);
+  const duration = info.duration || 0;
+
+  // A quarter of the way in: heads and tails are often blank or mid-programme,
+  // and a window containing no breaks calibrates nothing.
+  const window = Math.min(opts.calibrateWindow, Math.max(60, duration / 2));
+  const range = { start: Math.max(0, Math.min(duration * 0.25, duration - window)), duration: window };
+
+  const rungs = [];
+  for (let i = 0; i < CALIBRATION_LADDER.length; i++) {
+    const threshold = CALIBRATION_LADDER[i];
+    hooks.onStatus && hooks.onStatus(`Testing sensitivity ${i + 1} of ${CALIBRATION_LADDER.length}…`);
+    const { black, silence } = await scanEvents(
+      filePath,
+      { ...opts, blackThreshold: threshold },
+      window,
+      { onProgress: (p) => hooks.onProgress && hooks.onProgress((i + p) / CALIBRATION_LADDER.length) },
+      range,
+    );
+    const coinciding = black.filter((b) => b.end !== null && silence.some(
+      (s) => s.end !== null && intervalsOverlap(s, b.start, b.end, opts.coincidenceTol))).length;
+    rungs.push({ threshold, blackEvents: black.length, coinciding });
+  }
+
+  const best = pickThreshold(rungs);
+  return {
+    threshold: best.threshold,
+    rungs,
+    range,
+    // Nothing found even at the top of the ladder: this stretch of tape has no
+    // breaks in it. Better to say so than to hand back a number backed by
+    // nothing.
+    inconclusive: rungs[rungs.length - 1].blackEvents < 3,
+  };
+}
+
 // whole tape. Returns boundaries at ABSOLUTE timeline positions.
 async function detectSample(filePath, userOpts = {}, range = {}, hooks = {}) {
   const opts = { ...DEFAULTS, ...userOpts };
@@ -250,4 +341,4 @@ async function detectSample(filePath, userOpts = {}, range = {}, hooks = {}) {
   };
 }
 
-module.exports = { detect, detectSample, DEFAULTS };
+module.exports = { detect, detectSample, calibrate, DEFAULTS };

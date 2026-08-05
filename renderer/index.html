@@ -100,6 +100,13 @@
               <option value="aggressive">Aggressive — last resort, expect over-splitting</option>
               <option value="custom">Custom</option>
             </select>
+            <div class="experimental hidden" data-experimental>
+              <div class="settings-row" style="margin-top:8px">
+                <span id="calibrateStatus" class="muted"></span>
+                <button id="calibrateBtn" class="btn btn-small" disabled>Calibrate to this tape <span class="exp-tag">exp</span></button>
+              </div>
+              <small>Samples 20 minutes of the tape at five sensitivities and keeps the highest one still finding real breaks. Tested on two tapes so far — check its answer with “Test here” before trusting it on a long scan.</small>
+            </div>
           </div>
           <div class="field">
             <label>Black sensitivity <output id="blackOut">0.10</output></label>
@@ -327,6 +334,8 @@
         <p>On import, a small low-res copy is built so scrubbing stays fast. Export always uses your full-quality original.</p>
         <label class="switch"><input id="setProxyEnabled" type="checkbox" /> <span>Build preview proxies automatically</span></label>
         <label class="switch" style="margin-top:6px"><input id="setDetectOnProxy" type="checkbox" /> <span>Scan the preview when detecting commercials</span></label>
+        <label class="switch" style="margin-top:6px"><input id="setExperimental" type="checkbox" /> <span>Show experimental features</span></label>
+        <small class="switch-note">Reveals work that isn't finished being tested. It may give wrong answers or change between versions. Nothing here runs unless you ask it to.</small>
         <small class="switch-note">Much faster, and black frames and silence read the same at low resolution. On a two-hour capture this was 52 seconds instead of 413, finding exactly the same breaks. Turn it off to scan the original instead.</small>
         <div class="field" style="margin-top:12px">
           <label>Cache limit <output id="setCapOut">8 GB</output></label>
