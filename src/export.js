@@ -15,12 +15,22 @@ const FRAMES = {
 };
 
 // Quality presets → x264 CRF (lower = better/bigger).
+//
+// Deliberately not named after delivery formats. Resolution always follows the
+// source, so "Blu-ray" or "DVD" would promise something this setting does not
+// control — and neither means anything applied to a 480-line tape. What it
+// actually trades is size against how much tape grain survives, since x264
+// smooths noise as compression rises.
+//
+// Measured on a 1080p60 capture, per hour: 5.9 / 4.4 / 2.8 / 1.6 / 0.8 GB —
+// roughly 100 / 75 / 45 / 30 / 15 percent of Archive. The absolutes move with
+// capture resolution; the ratios hold.
 const QUALITY = {
-  archive: 16,   // near lossless
-  high: 18,      // Blu-ray-ish (default)
-  balanced: 21,  // YouTube HD
-  efficient: 24, // DVD-ish
-  low: 28,       // VHS LP, small
+  archive: 16,   // 100%, grain intact
+  high: 18,      // ~75%, no visible loss (default)
+  balanced: 21,  // ~45%, the YouTube upload size
+  efficient: 24, // ~30%, grain begins smoothing
+  low: 28,       // ~15%, visibly compressed
 };
 
 // Denoise + re-sharpen presets by tape speed. hqdn3d removes VHS grain;

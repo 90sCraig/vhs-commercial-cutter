@@ -16,6 +16,9 @@ const DEFAULTS = {
   // Reveals features that aren't finished being validated. Off by default so
   // nobody trusts an answer the app isn't confident in yet.
   experimental: false,
+  // Explanatory lines under the controls. Off by default for a tighter panel;
+  // the "i" tooltips and the Guide still explain everything either way.
+  showHelpText: false,
   // Detection thresholds, remembered between sessions. Tuning these against
   // your own tapes is the whole workflow, so losing them on quit is hostile.
   detect: {

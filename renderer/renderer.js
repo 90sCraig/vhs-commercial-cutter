@@ -258,6 +258,23 @@ function applyExperimental() {
     el.classList.toggle('hidden', !on));
 }
 
+// Help text is a body class rather than per-element, so it covers the lines
+// added later without anyone having to remember to wire them up. Both the
+// topbar button and the Settings checkbox are driven from here, so whichever
+// one you use, the other follows.
+function applyHelpText() {
+  const on = !!(state.settings && state.settings.showHelpText === true);
+  document.body.classList.toggle('no-help', !on);
+  $('helpTextToggle').checked = on;
+  $('helpTextState').textContent = on ? 'On' : 'Off';
+  $('setHelpText').checked = on;
+}
+
+async function setHelpText(on) {
+  state.settings = await window.api.setSettings({ showHelpText: on });
+  applyHelpText();
+}
+
 // Measure this tape and set the black threshold to suit it. The right value
 // varies enough between tapes that a fixed default is wrong for some of them.
 async function runCalibrate() {
@@ -789,9 +806,12 @@ function updateExportSummary() {
   const target = exportTarget();
   const chosen = state.segments.filter((s) => (target === 'skip' ? !s.keep : s.keep));
   const noun = target === 'skip' ? 'show' : 'commercial';
+  // Cut points depend only on there being segments at all — the handler says
+  // so if the chosen side happens to be empty.
+  $('cutPointsBtn').disabled = state.segments.length === 0;
   if (chosen.length === 0) {
     $('exportSummary').textContent = state.segments.length ? `No ${noun} clips selected.` : '';
-    $('exportBtn').disabled = chosen.length === 0;
+    $('exportBtn').disabled = true;
     return;
   }
   const total = chosen.reduce((a, s) => a + s.duration, 0);
@@ -805,6 +825,35 @@ function updateExportSummary() {
     (mode === 'merged' ? 'Output: one merged file' : `Output: ${chosen.length} separate clips`) +
     `<br><span class="muted">${bits.join(' · ')}</span>`;
   $('exportBtn').disabled = false;
+}
+
+// Write the in/out points as text instead of encoding anything, for cutting
+// elsewhere. Instant — no ffmpeg involved.
+async function saveCutPoints() {
+  if (!state.segments.length) return toast('Run detection first — there are no clips to write.', true);
+  const fps = state.info && state.info.fps;
+  // Frame numbers are the whole point of the file, so refuse rather than
+  // writing timecodes and quietly dropping the column they asked for.
+  if (!fps) return toast("Couldn't read the source frame rate, so frame numbers aren't available.", true);
+  const target = exportTarget();
+  const outputDir = state.outputDir || dirName(state.filePath);
+  try {
+    const res = await window.api.saveCutPoints({
+      segments: state.segments,
+      target,
+      fps,
+      baseName: exportBaseName(),
+      sourceName: baseName(state.filePath),
+      outputDir,
+    });
+    if (!res.written.length) {
+      return toast(`No ${target === 'skip' ? 'skipped' : 'saved'} clips to write.`, true);
+    }
+    toast(`Wrote ${res.written.length} cut-point files to ${outputDir}`);
+    window.api.showItem(res.written[0]);
+  } catch (e) {
+    toast('Could not write cut points: ' + e.message, true);
+  }
 }
 
 async function runExport() {
@@ -941,7 +990,9 @@ async function initSettings() {
   $('setProxyEnabled').checked = state.settings.proxyEnabled;
   $('setDetectOnProxy').checked = state.settings.detectOnProxy !== false;
   $('setExperimental').checked = state.settings.experimental === true;
+  $('setHelpText').checked = state.settings.showHelpText !== false;
   applyExperimental();
+  applyHelpText();
   applySavedDetect();
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
@@ -976,6 +1027,8 @@ async function initSettings() {
     state.settings = await window.api.setSettings({ experimental: $('setExperimental').checked });
     applyExperimental(); // takes effect straight away, no restart
   });
+  $('setHelpText').addEventListener('change', () => setHelpText($('setHelpText').checked));
+  $('helpTextToggle').addEventListener('change', () => setHelpText($('helpTextToggle').checked));
   $('setCap').addEventListener('input', () => { $('setCapOut').textContent = $('setCap').value + ' GB'; });
   $('setCap').addEventListener('change', async () => {
     state.settings = await window.api.setSettings({ proxyCacheCapGB: parseInt($('setCap').value, 10) });
@@ -1041,6 +1094,7 @@ function init() {
   });
   $('detectBtn').addEventListener('click', runDetect);
   $('calibrateBtn').addEventListener('click', runCalibrate);
+  $('cutPointsBtn').addEventListener('click', saveCutPoints);
   $('overlayAbort').addEventListener('click', async () => {
     const b = $('overlayAbort');
     b.disabled = true;                 // killing is quick, but do not queue clicks

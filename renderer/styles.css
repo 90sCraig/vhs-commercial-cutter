@@ -143,6 +143,37 @@ body::after {
 .proxy-abort:disabled { opacity: .6; cursor: default; }
 .proxy-abort.hidden { display: none; }
 .experimental.hidden { display: none; }
+/* Help text off: only in the control panel. The Settings modal and the Guide
+   keep their explanations, since that is what they are for. */
+body.no-help .panel small { display: none; }
+/* Compact switch for the top bar. Reads its own state in words, so there is no
+   guessing whether the control shows what is true or what clicking would do. */
+.mini-switch {
+  -webkit-app-region: no-drag;
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  font-size: 11px; letter-spacing: .5px; text-transform: uppercase;
+  color: var(--muted); user-select: none;
+}
+.mini-switch input { display: none; }
+.mini-track {
+  position: relative; width: 28px; height: 15px; border-radius: 999px;
+  background: var(--bg-3); border: 1px solid var(--line-hi);
+  transition: background .15s, border-color .15s;
+}
+/* box-sizing is border-box globally, so the track's 15px includes its 1px
+   borders — 13px of usable height. An 11px knob therefore sits at 1px to have
+   equal gaps above and below; at 2px it rests on the bottom edge. Same for the
+   horizontal: 1px in, travelling 13px, leaves 1px at each end. */
+.mini-knob {
+  position: absolute; top: 1px; left: 1px; width: 11px; height: 11px;
+  border-radius: 50%; background: var(--muted);
+  transition: transform .15s, background .15s;
+}
+.mini-switch input:checked + .mini-track { background: rgba(95,206,140,0.22); border-color: var(--accent); }
+.mini-switch input:checked + .mini-track .mini-knob { transform: translateX(13px); background: var(--accent); }
+.mini-switch:hover .mini-track { border-color: var(--accent); }
+.mini-state { min-width: 20px; }
+.mini-switch input:checked ~ .mini-state { color: var(--accent); }
 .exp-tag {
   font-size: 8.5px; letter-spacing: .5px; text-transform: uppercase;
   padding: 1px 5px; margin-left: 6px; border-radius: 3px; vertical-align: 1px;
@@ -250,8 +281,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .switch { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-bottom: 10px; }
 .switch input { accent-color: var(--accent); width: 16px; height: 16px; }
 .switch-note { display: block; font-size: 11px; color: var(--muted); margin: 3px 0 0 26px; line-height: 1.4; }
-.disabled-group { transition: opacity .15s; }
-.disabled-group.off { opacity: .35; pointer-events: none; }
+/* Collapsed rather than dimmed: seven greyed-out sliders you cannot use are a
+   lot of panel to spend on a feature that is switched off. */
+.collapsible.off { display: none; }
 .sub-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 6px 0 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 
 .seg-toggle { display: flex; gap: 8px; margin-bottom: 12px; }

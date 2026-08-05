@@ -16,6 +16,12 @@
     </div>
     <div class="topbar-actions">
       <span id="fileLabel" class="file-label">No file loaded</span>
+      <label class="mini-switch" title="Show or hide the explanatory text under the controls">
+        <span>Help</span>
+        <input id="helpTextToggle" type="checkbox" />
+        <span class="mini-track"><span class="mini-knob"></span></span>
+        <span id="helpTextState" class="mini-state">Off</span>
+      </label>
       <button id="settingsBtn" class="btn" title="Settings">⚙ Settings</button>
       <button id="guideBtn" class="btn" title="How to use VHS Commercial Cutter">Guide</button>
       <button id="openBtn" class="btn btn-primary">Open file…</button>
@@ -121,6 +127,7 @@
           <div class="field">
             <label>Min commercial gap <output id="minCommercialOut">8 s</output></label>
             <input id="minCommercial" type="range" min="2" max="30" step="1" value="8" />
+            <small>Ignores gaps shorter than this. Raise it on a noisy tape that splits into fragments; lower it if short spots are being swallowed.</small>
           </div>
           <div class="field">
             <label>Max commercial length <output id="maxCommercialOut">6.0 min</output></label>
@@ -176,7 +183,7 @@
             <input id="colorEnabled" type="checkbox" />
             <span>Correct color</span>
           </label>
-          <div id="colorControls" class="disabled-group">
+          <div id="colorControls" class="collapsible">
             <div class="field">
               <label>Brightness <output id="brightnessOut">0.05</output></label>
               <input id="brightness" type="range" min="-0.3" max="0.3" step="0.01" value="0.05" />
@@ -194,6 +201,7 @@
               <input id="gamma" type="range" min="0.4" max="2" step="0.01" value="1.00" />
             </div>
             <div class="sub-label">Color balance</div>
+            <small>Shifts the midtones per channel. VHS usually drifts warm, so a touch of blue often evens it out. Leave at zero unless the tint is visibly off.</small>
             <div class="field">
               <label>Red <output id="rgbROut">0.00</output></label>
               <input id="rgbR" type="range" min="-0.5" max="0.5" step="0.02" value="0" />
@@ -242,14 +250,15 @@
             </select>
           </div>
           <div class="field">
-            <label>Quality <span class="info" tabindex="0" data-help="How hard the encoder works to preserve detail. Archive is near-lossless and large; Low is small and soft. Resolution and frame rate always match your source, so this is the only thing affecting file size.">i</span></label>
+            <label>Quality <span class="info" tabindex="0" data-help="Trades file size against how much of the tape survives. Resolution and frame rate always match your source, so this is the only thing affecting size. The sizes shown are relative to Archive — actual figures depend on how you captured. As compression rises, tape grain gets smoothed away: cleaner to some eyes, lost detail to others.">i</span></label>
             <select id="exportQuality">
-              <option value="archive">Archive · near-lossless</option>
-              <option value="high" selected>High · Blu-ray</option>
-              <option value="balanced">Balanced · YouTube</option>
-              <option value="efficient">Efficient · DVD</option>
-              <option value="low">Low · VHS LP</option>
+              <option value="archive">Archive · 100%, every grain preserved</option>
+              <option value="high" selected>High · about 75%, no visible loss</option>
+              <option value="balanced">Balanced · about 45%, good for YouTube</option>
+              <option value="efficient">Efficient · about 30%, grain starts smoothing</option>
+              <option value="low">Low · about 15%, visibly compressed</option>
             </select>
+            <small>Percentages are file size against Archive. Measured on a 1080p60 capture that ran 5.9 GB/hour at Archive and 2.8 at Balanced — your own figures depend on how the tape was captured, but the ratios hold.</small>
           </div>
           <div class="field">
             <label>Output filename</label>
@@ -268,6 +277,8 @@
           </div>
           <div class="summary" id="exportSummary"></div>
           <button id="exportBtn" class="btn btn-primary full" disabled>Export</button>
+          <button id="cutPointsBtn" class="btn full" style="margin-top:8px" disabled>Save cut points only</button>
+          <small>Writes the in and out points as text instead of video — a CSV of timecodes and frame numbers, plus an AviSynth <em>Trim()</em> chain. Use it to cut in another editor. Frames are absolute positions in your source.</small>
         </div>
 
       </div>
@@ -334,6 +345,8 @@
         <p>On import, a small low-res copy is built so scrubbing stays fast. Export always uses your full-quality original.</p>
         <label class="switch"><input id="setProxyEnabled" type="checkbox" /> <span>Build preview proxies automatically</span></label>
         <label class="switch" style="margin-top:6px"><input id="setDetectOnProxy" type="checkbox" /> <span>Scan the preview when detecting commercials</span></label>
+        <label class="switch" style="margin-top:6px"><input id="setHelpText" type="checkbox" /> <span>Show help text under the controls</span></label>
+        <small class="switch-note">Adds a line of explanation under each control. Also on the ⓘ button in the top bar. The “i” tooltips and the Guide work either way.</small>
         <label class="switch" style="margin-top:6px"><input id="setExperimental" type="checkbox" /> <span>Show experimental features</span></label>
         <small class="switch-note">Reveals work that isn't finished being tested. It may give wrong answers or change between versions. Nothing here runs unless you ask it to.</small>
         <small class="switch-note">Much faster, and black frames and silence read the same at low resolution. On a two-hour capture this was 52 seconds instead of 413, finding exactly the same breaks. Turn it off to scan the original instead.</small>
