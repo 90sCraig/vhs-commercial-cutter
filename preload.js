@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('api', {
   calibrate: (filePath, opts) => ipcRenderer.invoke('detect:calibrate', { filePath, opts }),
   export: (payload) => ipcRenderer.invoke('export:run', payload),
   abortJob: () => ipcRenderer.invoke('job:abort'),
+  saveCutPoints: (payload) => ipcRenderer.invoke('cutpoints:save', payload),
   renderPreview: (payload) => ipcRenderer.invoke('preview:render', payload),
   buildProxy: (filePath, duration) => ipcRenderer.invoke('proxy:ensure', { filePath, duration }),
   getSettings: () => ipcRenderer.invoke('settings:get'),

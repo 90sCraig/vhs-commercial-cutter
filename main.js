@@ -5,6 +5,7 @@ const { detect, detectSample, calibrate } = require('./src/detect');
 const { exportVideo, renderPreview } = require('./src/export');
 const os = require('os');
 const { ensureProxy, proxyPathFor, cacheSize, clearCache } = require('./src/proxy');
+const cutpoints = require('./src/cutpoints');
 const fs = require('fs');
 const settings = require('./src/settings');
 const { decodeAccel } = require('./src/encoders');
@@ -170,6 +171,20 @@ ipcMain.handle('export:run', async (_e, payload) => {
 // Kills whatever ffmpeg is running and blocks the job from starting its next
 // step. Safe to call when nothing is running.
 ipcMain.handle('job:abort', () => cancelJob());
+
+// Cut points as text. No encoding, so this is instant even on a long tape.
+ipcMain.handle('cutpoints:save', async (_e, payload) => {
+  const files = cutpoints.build(payload);
+  if (!files.length) return { written: [] };
+  fs.mkdirSync(payload.outputDir, { recursive: true });
+  const written = [];
+  for (const f of files) {
+    const target = path.join(payload.outputDir, f.name);
+    fs.writeFileSync(target, f.body, 'utf8');
+    written.push(target);
+  }
+  return { written };
+});
 
 ipcMain.handle('proxy:ensure', async (_e, { filePath, duration }) => {
   const s = settings.load();
