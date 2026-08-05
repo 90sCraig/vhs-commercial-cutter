@@ -1,6 +1,6 @@
 {
   "name": "vhs-editor",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "productName": "VHS Commercial Cutter",
   "description": "Find the commercials in digitized VHS tapes and save them as clips, or keep the show with the ads removed.",
   "main": "main.js",

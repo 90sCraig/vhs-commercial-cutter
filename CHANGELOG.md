@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0
+
+**Save cut points as text.** A new button in Export writes the in and out points without encoding anything, so it's instant even on a long tape. You get a CSV with frame numbers, timecodes and durations, plus an AviSynth `Trim()` chain ready to paste. Frame numbers are absolute positions in your source, accurate to about ±2 frames. It follows your commercials-or-show selection, so both directions come from the same button. Useful if you'd rather cut in another editor, or hand the cut list to a script.
+
+**Detection settings are remembered**, and there's a strength picker. Strict, Balanced, Sensitive and Aggressive set the two thresholds to sensible starting points; touching a slider switches it to Custom. Everything survives a restart instead of resetting each session.
+
+**Threshold calibration, marked experimental.** Turn on *Show experimental features* in Settings and a Calibrate button appears in Detect. It samples 20 minutes of the tape at five sensitivities and keeps the highest one still finding real breaks — about 45 seconds. This exists because there is no universally right setting: two tapes from the same collection and deck wanted noticeably different values, and the shipped default was blind on one of them. It's flagged experimental because it's only been checked against those two tapes.
+
+**Help text is now optional.** Every control's explanatory line can be hidden with a switch in the top bar, off by default for a tighter panel. Tooltips and the Guide are unaffected. Min commercial gap and the colour balance sliders gained explanations they were missing.
+
+**Colour sliders collapse when Correct color is off**, rather than sitting there greyed out.
+
+**Quality presets renamed.** They used to be named after delivery formats — Blu-ray, DVD — which promised something the setting doesn't control, since resolution always follows your source. They now state file size against Archive: 100, 75, 45, 30 and 15 percent, measured on a real capture. As compression rises, tape grain gets smoothed away, which is the trade actually being made.
+
 ## 0.3.1
 
 **Preview these effects works again.** The button failed with "Error opening input file undefined" every time it was pressed. The preview request sent the file path under the wrong name, so FFmpeg was handed nothing at all. This had been broken since before 0.2.0, so it never worked in any released build.
