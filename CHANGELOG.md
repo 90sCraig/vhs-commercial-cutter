@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+**Preview these effects works again.** The button failed with "Error opening input file undefined" every time it was pressed. The preview request sent the file path under the wrong name, so FFmpeg was handed nothing at all. This had been broken since before 0.2.0, so it never worked in any released build.
+
+**New icon.**
+
 ## 0.3.0
 
 **Detection is roughly 8× faster.** It now scans the small preview copy instead of your original capture. Black frames and silence read the same at low resolution, so the result is identical — on a two-hour 1080p capture stored on a network drive, a scan that took 6 minutes 53 seconds now takes 53 seconds, finding exactly the same breaks. Export still always uses your full-quality original. There's a switch in Settings if you'd rather scan the original.
