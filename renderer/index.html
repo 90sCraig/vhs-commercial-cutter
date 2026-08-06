@@ -305,9 +305,7 @@
       <div id="segmentList" class="segment-list">
         <div class="empty-note">Load a capture and run detection to see segments.</div>
       </div>
-      <div class="kbd-hint">
-        Space play · ←/→ step frame (Shift = 1s) · S split · M merge · I/O set in-out · K save⁄skip · drag timeline boundaries
-      </div>
+      <div class="kbd-hint" id="kbdHint"></div>
     </section>
   </main>
 
@@ -347,6 +345,14 @@
         <label class="switch" style="margin-top:6px"><input id="setDetectOnProxy" type="checkbox" /> <span>Scan the preview when detecting commercials</span></label>
         <label class="switch" style="margin-top:6px"><input id="setHelpText" type="checkbox" /> <span>Show help text under the controls</span></label>
         <small class="switch-note">Adds a line of explanation under each control. Also on the ⓘ button in the top bar. The “i” tooltips and the Guide work either way.</small>
+        <div class="field" style="margin-top:12px">
+          <label>Keyboard shortcuts</label>
+          <select id="setKeymap">
+            <option value="default">Default</option>
+            <option value="videoredo">VideoReDo</option>
+          </select>
+          <small>VideoReDo puts frame stepping on the up and down arrows, leaves left and right for larger jumps, and marks in and out with F3 and F4. Split, merge and save/skip keep their keys in both layouts.</small>
+        </div>
         <label class="switch" style="margin-top:6px"><input id="setExperimental" type="checkbox" /> <span>Show experimental features</span></label>
         <small class="switch-note">Reveals work that isn't finished being tested. It may give wrong answers or change between versions. Nothing here runs unless you ask it to.</small>
         <small class="switch-note">Much faster, and black frames and silence read the same at low resolution. On a two-hour capture this was 52 seconds instead of 413, finding exactly the same breaks. Turn it off to scan the original instead.</small>

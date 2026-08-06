@@ -19,6 +19,7 @@ const DEFAULTS = {
   // Explanatory lines under the controls. Off by default for a tighter panel;
   // the "i" tooltips and the Guide still explain everything either way.
   showHelpText: false,
+  keymap: 'default', // 'default' | 'videoredo'
   // Detection thresholds, remembered between sessions. Tuning these against
   // your own tapes is the whole workflow, so losing them on quit is hostile.
   detect: {

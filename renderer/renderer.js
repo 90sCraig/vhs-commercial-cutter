@@ -249,6 +249,91 @@ async function runSample() {
 // The job runs in the main process, so IPC wraps its error — match the message.
 function isAbort(e) { return /Cancelled/i.test((e && e.message) || ''); }
 
+// ---- keyboard layouts -------------------------------------------------
+//
+// Two profiles. Default is this app's own; VideoReDo mirrors the layout in its
+// manual, because people arriving from it have the muscle memory already.
+//
+// The notable difference is navigation: VideoReDo steps single frames on the
+// up/down arrows and leaves left/right for larger jumps, with Shift and Ctrl
+// as x2 and x3 multipliers. Its manual documents up/down as the single-frame
+// keys without saying which way each goes; up = forward follows convention.
+//
+// Split, merge and save/skip stay put in both. VideoReDo uses S and M for
+// jump-to-selection-start and mute, but splitting and merging are central here
+// in a way they are not there, so those keys are not worth surrendering.
+const KEYMAPS = {
+  default: {
+    hint: 'Space play · ←/→ step frame (Shift = 1s) · Tab next cut · S split · M merge · I/O set in-out · K save⁄skip · drag timeline boundaries',
+    keys: {
+      ' ': 'playPause',
+      arrowleft: 'frameBack', arrowright: 'frameFwd',
+      home: 'gotoStart', end: 'gotoEnd',
+      tab: 'stepBoundary',
+      s: 'split', m: 'merge', i: 'markIn', o: 'markOut', k: 'toggleKeep',
+    },
+  },
+  videoredo: {
+    hint: 'Space play · ↑/↓ step frame · ←/→ jump 1s (Shift ×2, Ctrl ×3) · PgUp/PgDn 2 min · Tab next cut · F3/F4 mark in-out · S split · M merge · K save⁄skip',
+    keys: {
+      ' ': 'playPause',
+      arrowup: 'frameFwd', arrowdown: 'frameBack',
+      arrowleft: 'coarseBack', arrowright: 'coarseFwd',
+      pageup: 'jumpFwd', pagedown: 'jumpBack',
+      home: 'gotoStart', end: 'gotoEnd',
+      tab: 'stepBoundary',
+      f3: 'markIn', f4: 'markOut',
+      s: 'split', m: 'merge', k: 'toggleKeep',
+    },
+  },
+};
+
+function activeKeymap() {
+  return KEYMAPS[(state.settings && state.settings.keymap) || 'default'] || KEYMAPS.default;
+}
+
+function seekBy(p, secs) {
+  state.previewEnd = null;
+  p.currentTime = clamp(p.currentTime + secs, 0, Math.max(0, state.duration - 0.05));
+}
+
+// VideoReDo's left/right multipliers: x2 with Shift, x3 with Ctrl.
+function coarseStep(e) { return e.ctrlKey ? 3 : (e.shiftKey ? 2 : 1); }
+
+// Walk the cut list from the keyboard. Reviewing 80 segments with the mouse is
+// the slow part of the job; this is the traversal VideoReDo's Tab gives you.
+function stepBoundary(dir) {
+  if (!state.segments.length) return;
+  const i = selectedIndex();
+  const next = i === -1
+    ? (dir > 0 ? 0 : state.segments.length - 1)
+    : clamp(i + dir, 0, state.segments.length - 1);
+  selectSegment(state.segments[next].id, { seek: true });
+}
+
+const KEY_ACTIONS = {
+  playPause: (e, p) => { e.preventDefault(); if (p.paused) p.play().catch(() => {}); else p.pause(); },
+  frameBack: (e) => { e.preventDefault(); stepFrame(-1, e.shiftKey); },
+  frameFwd: (e) => { e.preventDefault(); stepFrame(1, e.shiftKey); },
+  coarseBack: (e, p) => { e.preventDefault(); seekBy(p, -coarseStep(e)); },
+  coarseFwd: (e, p) => { e.preventDefault(); seekBy(p, coarseStep(e)); },
+  jumpBack: (e, p) => { e.preventDefault(); seekBy(p, -120); },
+  jumpFwd: (e, p) => { e.preventDefault(); seekBy(p, 120); },
+  gotoStart: (e, p) => { e.preventDefault(); state.previewEnd = null; p.currentTime = 0; },
+  gotoEnd: (e, p) => { e.preventDefault(); state.previewEnd = null; p.currentTime = Math.max(0, state.duration - 0.1); },
+  stepBoundary: (e) => { e.preventDefault(); stepBoundary(e.shiftKey ? -1 : 1); },
+  split: () => splitAtPlayhead(),
+  merge: (e) => mergeWithNeighbor(e.shiftKey ? 1 : -1),
+  markIn: (e) => { e.preventDefault(); setInPoint(); },
+  markOut: (e) => { e.preventDefault(); setOutPoint(); },
+  toggleKeep: () => { if (state.selected != null) toggleSegment(state.selected); },
+};
+
+function applyKeymap() {
+  $('kbdHint').textContent = activeKeymap().hint;
+  $('setKeymap').value = (state.settings && state.settings.keymap) || 'default';
+}
+
 // Anything marked [data-experimental] is hidden unless the setting is on.
 // One switch for all of it, so a new half-finished feature just needs the
 // attribute rather than its own plumbing.
@@ -993,6 +1078,7 @@ async function initSettings() {
   $('setHelpText').checked = state.settings.showHelpText !== false;
   applyExperimental();
   applyHelpText();
+  applyKeymap();
   applySavedDetect();
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
@@ -1022,6 +1108,10 @@ async function initSettings() {
   });
   $('setDetectOnProxy').addEventListener('change', async () => {
     state.settings = await window.api.setSettings({ detectOnProxy: $('setDetectOnProxy').checked });
+  });
+  $('setKeymap').addEventListener('change', async () => {
+    state.settings = await window.api.setSettings({ keymap: $('setKeymap').value });
+    applyKeymap(); // the hint line follows immediately, no restart
   });
   $('setExperimental').addEventListener('change', async () => {
     state.settings = await window.api.setSettings({ experimental: $('setExperimental').checked });
@@ -1162,20 +1252,9 @@ function init() {
     if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
     if (helpModalOpen() || settingsOpen()) return;
     if (!state.filePath) return;
-    const p = $('player');
-    switch (e.key) {
-      case ' ': e.preventDefault(); if (p.paused) p.play().catch(() => {}); else p.pause(); break;
-      case 'ArrowLeft': e.preventDefault(); stepFrame(-1, e.shiftKey); break;
-      case 'ArrowRight': e.preventDefault(); stepFrame(1, e.shiftKey); break;
-      case 'Home': e.preventDefault(); state.previewEnd = null; p.currentTime = 0; break;
-      case 'End': e.preventDefault(); state.previewEnd = null; p.currentTime = Math.max(0, state.duration - 0.1); break;
-      case 's': case 'S': splitAtPlayhead(); break;
-      case 'm': case 'M': mergeWithNeighbor(e.shiftKey ? 1 : -1); break;
-      case 'i': case 'I': setInPoint(); break;
-      case 'o': case 'O': setOutPoint(); break;
-      case 'k': case 'K': if (state.selected != null) toggleSegment(state.selected); break;
-      default: break;
-    }
+    const action = activeKeymap().keys[e.key.toLowerCase()];
+    const run = KEY_ACTIONS[action];
+    if (run) run(e, $('player'));
   });
 
   // color toggle
