@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+**Choose your keyboard layout.** Settings now offers Default or VideoReDo, and the hint line under the segment list updates to match. If you came from VideoReDo, its navigation works the way you expect: single frames on the up and down arrows, larger jumps on left and right with Shift and Ctrl as multipliers, two-minute jumps on Page Up and Page Down, and F3 and F4 to mark in and out.
+
+Split, merge and save/skip keep the same keys in both layouts. VideoReDo uses those letters for other things, but they're the keys you reach for most here, so they stay put.
+
+**Tab steps through the cut list**, Shift+Tab goes back. On a tape with eighty segments, reviewing them from the keyboard instead of clicking each one is the difference between a minute and ten.
+
 ## 0.4.0
 
 **Save cut points as text.** A new button in Export writes the in and out points without encoding anything, so it's instant even on a long tape. You get a CSV with frame numbers, timecodes and durations, plus an AviSynth `Trim()` chain ready to paste. Frame numbers are absolute positions in your source, accurate to about ±2 frames. It follows your commercials-or-show selection, so both directions come from the same button. Useful if you'd rather cut in another editor, or hand the cut list to a script.
