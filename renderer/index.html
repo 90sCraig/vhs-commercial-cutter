@@ -168,6 +168,13 @@
             <span class="info" tabindex="0" data-help="Clean up the picture and sound. Enhance removes VHS grain and re-sharpens; Correct color fixes dark, washed-out, or off-tint footage; Audio drift fixes lip-sync. All of this is applied when you export, using your full-quality original (not the preview).">i</span>
           </div>
 
+          <label class="switch">
+            <input id="repairTears" type="checkbox" />
+            <span>Repair torn frames</span>
+          </label>
+          <small class="switch-note">Rebuilds single frames the capture device split across two positions with a band of corruption between. This is a capture fault rather than tape damage, so it tends to affect every tape from the same setup. On screen it looks like a stutter. Leave off unless a tape needs it.</small>
+          <div id="tearNotice" class="tear-notice hidden"></div>
+
           <div class="field">
             <label>Enhance — denoise + sharpen</label>
             <select id="enhancePreset">
@@ -442,6 +449,7 @@
 
         <h3>Restore (optional)</h3>
         <ul>
+          <li><b>Repair torn frames</b> — some capture devices lose sync a few times a second and write a frame split across two positions with a band of corruption between. On screen it looks like a stutter, so it's easy to mistake for a frame-rate problem. This rebuilds those frames from the ones either side. Every tape is checked when you open it, and this switches on by itself if tearing is found — you don't need to go looking for it. It's a fault in the capture hardware rather than the tape, so it usually affects everything captured on the same setup. Leave it off otherwise: it makes detection noticeably slower.</li>
           <li><b>Enhance</b> — denoise + re-sharpen by tape speed (SP / LP / EP). Use heavier presets for older, noisier tapes.</li>
           <li><b>Correct color</b> — brightness, contrast, saturation, gamma, plus Red/Green/Blue balance to remove color casts.</li>
           <li><b>Audio drift</b> — shift the audio to fix lip-sync (positive = audio later).</li>

@@ -155,7 +155,32 @@ function runFfmpeg(args, { onLine, onProgress } = {}) {
   });
 }
 
+// Spawns ffmpeg and streams raw stdout chunks to onChunk. runFfmpeg() reads
+// stderr for log lines and throws stdout away; the torn-frame scan needs the
+// opposite — decoded pixels out of stdout. Registered in `live` like any other
+// job so Abort still reaches it.
+function runFfmpegRaw(args, onChunk) {
+  return new Promise((resolve, reject) => {
+    if (cancelled) return reject(new CancelledError());
+    const proc = spawn(FFMPEG, args);
+    live.add(proc);
+    let errTail = '';
+    proc.stdout.on('data', onChunk);
+    proc.stderr.on('data', (chunk) => {
+      errTail += chunk.toString();
+      if (errTail.length > 20000) errTail = errTail.slice(-10000);
+    });
+    proc.on('error', (e) => { live.delete(proc); reject(e); });
+    proc.on('close', (code) => {
+      live.delete(proc);
+      if (cancelled) return reject(new CancelledError());
+      if (code === 0) resolve();
+      else reject(new Error(`ffmpeg exited ${code}\n${errTail.slice(-2000)}`));
+    });
+  });
+}
+
 module.exports = {
-  FFMPEG, FFPROBE, ffprobeInfo, runFfmpeg, tmpDir: os.tmpdir(),
+  FFMPEG, FFPROBE, ffprobeInfo, runFfmpeg, runFfmpegRaw, tmpDir: os.tmpdir(),
   beginJob, cancelJob, isCancelled, CancelledError,
 };

@@ -81,6 +81,7 @@ async function loadFile(filePath) {
     $('sampleBtn').disabled = false;
     $('calibrateBtn').disabled = false;
     clearHistory(); // a new tape starts with a clean slate
+    resetTearNotice(); // including any torn-frame finding from the last one
     $('previewSampleBtn').disabled = false;
     state.sampleBoundaries = []; state.sampleRange = null;
     state.inSamplePreview = false; $('previewBanner').classList.add('hidden');
@@ -120,6 +121,7 @@ function setProxyStatus(text, { spinning = false, ready = false, progress = null
 async function buildProxyFor(filePath) {
   if (state.settings && state.settings.proxyEnabled === false) {
     setProxyStatus(''); // proxies disabled — play the original directly
+    checkTears(filePath);
     return;
   }
   setProxyStatus('Preparing preview…', { spinning: true, abortable: true });
@@ -140,6 +142,7 @@ async function buildProxyFor(filePath) {
     state.usingProxy = true;
     setProxyStatus('Preview ready', { ready: true });
     setTimeout(() => { if (state.usingProxy && state.filePath === filePath) setProxyStatus(''); }, 2500);
+    checkTears(filePath); // proxy is local now, so the scan is cheap
   } catch (e) {
     // Cancelling is a choice, not a failure — say so differently. Either way
     // the player keeps using the full-quality original.
@@ -147,6 +150,39 @@ async function buildProxyFor(filePath) {
     else setProxyStatus('Preview unavailable — using original', {});
     setTimeout(() => { if (state.filePath === filePath) setProxyStatus(''); }, 4000);
   }
+}
+
+// ---- torn frames ------------------------------------------------------
+// Below this the finding isn't worth acting on. Measured with this scanner: an
+// affected capture reported 1.0/s averaged over sampled windows (3/s in its
+// worst stretches), a clean control 0.0/s across the same 900 frames. The clean
+// side has all the margin; the torn side only has 2x, so a tape that tears
+// rarely will fall under and stay quiet — which is the right call, since a
+// handful of tears over four hours isn't worth re-encoding for.
+const TEAR_RATE_MIN = 0.5;
+
+function resetTearNotice() {
+  $('tearNotice').classList.add('hidden');
+  $('repairTears').checked = false;
+}
+
+// Torn frames read as a stutter rather than as damage, so nobody goes hunting
+// for a repair setting. Scan the proxy once per tape and say what was found.
+// The switch gets preselected but the export is still the user's call — the
+// alternative is silently altering their footage on the strength of a heuristic.
+async function checkTears(filePath) {
+  try {
+    const r = await window.api.scanTears(filePath);
+    if (state.filePath !== filePath) return;  // switched tapes mid-scan
+    if (r.inconclusive || r.tornPerSecond < TEAR_RATE_MIN) return;
+    $('repairTears').checked = true;
+    $('tearNotice').textContent =
+      `Torn frames found — about ${r.tornPerSecond.toFixed(1)} per second `
+      + `(${r.torn} in ${r.frames} frames sampled). Repair has been switched on. `
+      + 'This is a capture fault rather than tape damage, so other tapes from '
+      + 'the same setup probably have it too.';
+    $('tearNotice').classList.remove('hidden');
+  } catch (_) { /* a failed scan costs a notice, not an import */ }
 }
 
 // ---- detection --------------------------------------------------------
@@ -215,6 +251,9 @@ function detectOpts() {
     silenceDb: parseInt($('silenceDb').value, 10),
     minCommercialLen: parseInt($('minCommercial').value, 10),
     maxCommercialLen: parseInt($('maxCommercial').value, 10),
+    // Repairing before the scan keeps the cuts-per-minute figure honest: a torn
+    // frame otherwise registers as two scene changes.
+    repairTears: $('repairTears').checked,
   };
 }
 
@@ -898,6 +937,7 @@ async function renderSamplePreview() {
       duration: 6,
       correction: colorSettings(),
       enhance: $('enhancePreset').value,
+      repairTears: $('repairTears').checked,
       layout: { frame: 'source' }, // focus on color/restore/audio
       quality: exportQuality(),
       audioDriftMs: parseInt($('audioDrift').value, 10),
@@ -1023,6 +1063,7 @@ async function runExport() {
     target: exportTarget(),
     correction: colorSettings(),
     enhance: $('enhancePreset').value,
+    repairTears: $('repairTears').checked,
     layout: exportLayout(),
     quality: exportQuality(),
     audioDriftMs: parseInt($('audioDrift').value, 10),

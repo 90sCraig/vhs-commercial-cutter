@@ -60,10 +60,27 @@ function colorBalance(correction) {
   return `colorbalance=rm=${r}:gm=${g}:bm=${b}`;
 }
 
-// The ordered list of pre-reframe video filters: denoise → color → balance →
-// sharpen. (Denoise before sharpen; sharpen last so it isn't smeared.)
-function videoPreParts(correction, enhance) {
+// Repairs torn frames: the pixel-wise median of each frame and its two
+// neighbours. Some capture devices lose sync several times a second and emit a
+// frame split across two positions with a band of corrupted data between. Those
+// pixels are outliers against both neighbours, so the median discards them and
+// reconstructs from the frames either side.
+//
+// Measured on a 4h 1440x1080 capture: 14 torn frames per 500 became 0. Frames
+// it left alone changed by a mean of 4/255, and the larger changes turned out
+// to be further torn frames rather than damage. Adds about a third to encode
+// time (2.1s to 2.8s for a 12s slice), so it stays well under realtime.
+// Only worth enabling on captures that actually tear — see src/tears.js.
+const REPAIR_TEARS = 'tmedian=radius=1';
+
+// The ordered list of pre-reframe video filters: repair → denoise → color →
+// balance → sharpen. Repair goes first because hqdn3d is temporal as well, so
+// denoising ahead of it would blend torn-frame data into the very neighbours
+// the repair needs to read. (Denoise before sharpen; sharpen last so it isn't
+// smeared.)
+function videoPreParts(correction, enhance, repairTears) {
   const parts = [];
+  if (repairTears) parts.push(REPAIR_TEARS);
   const en = ENHANCE[enhance];
   if (en && en.denoise) parts.push(en.denoise);
   const eq = colorEq(correction); if (eq) parts.push(eq);
@@ -74,8 +91,8 @@ function videoPreParts(correction, enhance) {
 
 // Build the video-filter args for a segment: restoration + optional reframe.
 // Returns { vf }, or {} when there is nothing to apply.
-function buildVideoFilter(correction, enhance, layout) {
-  const pre = videoPreParts(correction, enhance);
+function buildVideoFilter(correction, enhance, layout, repairTears) {
+  const pre = videoPreParts(correction, enhance, repairTears);
   const dims = layout && FRAMES[layout.frame];
   if (!dims) {
     // Source frame: restoration filters only. Resolution always follows the
@@ -110,11 +127,13 @@ function audioChain(driftMs, normalize) {
 
 // Encode a single [start,start+duration) slice, re-encoding so arbitrary cut
 // points are frame-accurate (VHS captures rarely have clean keyframes at cuts).
-// opts: { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio }
+// opts: { correction, enhance, layout, quality, audioDriftMs, encoder,
+//         normalizeAudio, repairTears }
 function encodeSegment(input, start, duration, outPath, opts, onProgress) {
-  const { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio } = opts;
+  const { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio,
+    repairTears } = opts;
   const args = ['-hide_banner', '-y', '-ss', String(start), '-i', input, '-t', String(duration)];
-  const f = buildVideoFilter(correction, enhance, layout);
+  const f = buildVideoFilter(correction, enhance, layout, repairTears);
   if (f.vf) args.push('-vf', f.vf);
   const af = audioChain(audioDriftMs, normalizeAudio);
   if (af) args.push('-af', af);
@@ -202,8 +221,8 @@ async function estimateBytes(input, exportSeconds, mode) {
 // mode: 'merged' | 'split'
 // target: 'save' (the clips you're keeping — commercials by default) | 'skip' (the rest)
 // layout: { frame: 'source'|'4:3' }
-async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', audioDriftMs = 0, encoder = 'cpu', normalizeAudio = false, outputDir, baseName }, hooks = {}) {
-  const encodeOpts = { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio };
+async function exportVideo({ input, segments, mode, target = 'save', correction, enhance = 'off', layout, quality = 'high', audioDriftMs = 0, encoder = 'cpu', normalizeAudio = false, repairTears = false, outputDir, baseName }, hooks = {}) {
+  const encodeOpts = { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio, repairTears };
   // Downgraded to CPU for the remainder once a hardware encode has failed.
   let active = encodeOpts;
   let fellBackToCpu = false;
@@ -296,9 +315,9 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
 // Render a short sample window with the given settings to outPath, for an
 // accurate "what will this look/sound like" preview (color, denoise/sharpen,
 // normalized audio). Uses the same pipeline as export.
-function renderPreview({ input, start, duration, outPath, correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio }, hooks = {}) {
+function renderPreview({ input, start, duration, outPath, correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio, repairTears }, hooks = {}) {
   return encodeSegment(input, start, duration, outPath,
-    { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio },
+    { correction, enhance, layout, quality, audioDriftMs, encoder, normalizeAudio, repairTears },
     hooks.onProgress);
 }
 

@@ -6,6 +6,7 @@ const { exportVideo, renderPreview } = require('./src/export');
 const os = require('os');
 const { ensureProxy, proxyPathFor, cacheSize, clearCache } = require('./src/proxy');
 const cutpoints = require('./src/cutpoints');
+const { scanTears } = require('./src/tears');
 const fs = require('fs');
 const settings = require('./src/settings');
 const { decodeAccel } = require('./src/encoders');
@@ -132,6 +133,19 @@ ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
   return keepAwake(() => detect(scanPathFor(filePath), opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
   }));
+});
+
+// Runs on the proxy, which is local and small — a few seconds of decode. Never
+// throws into the renderer: a failed tear scan should cost a notice, not an
+// import, so it reports "inconclusive" and stays quiet.
+ipcMain.handle('tears:scan', async (_e, { filePath }) => {
+  try {
+    const scanPath = scanPathFor(filePath);
+    const info = await ffprobeInfo(scanPath);
+    return await scanTears(scanPath, info.duration, info.fps);
+  } catch (_) {
+    return { tornPerSecond: 0, torn: 0, frames: 0, inconclusive: true };
+  }
 });
 
 ipcMain.handle('detect:sample', async (_e, { filePath, opts, range }) => {

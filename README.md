@@ -59,6 +59,7 @@ One tape, every ad break pulled out and exported as a single file:
 - **A timeline you can actually work in.** Zoom in, drag the cut points, split and merge clips, set in and out, step through frame by frame from the keyboard. There's a minimap for the wide view.
 - **Scrubs fast on huge files.** It builds a small proxy in the background so a giant MKV or a capture sitting on your network still plays smooth. The proxy cache is yours to control.
 - **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation, and gamma, fix the RGB balance, and pull the audio back in sync when it drifts.
+- **Repairs torn frames.** Some capture devices lose sync a few times a second and write a broken frame, which looks like a stutter and is easy to blame on the frame rate. Every tape gets checked when you open it, and the repair switches itself on if there's anything to fix.
 - **Exports how you want.** Commercials or show, one merged file or separate clips. Keep the source shape or reframe to 4:3 for YouTube, pick a quality, and name the files yourself. Resolution and frame rate always match your source.
 - **Uses your GPU if you've got one.** NVIDIA, Intel, or AMD for encode and decode, on export, previews, and detection. It picks the fastest one that works on your machine the first time you run it, and falls back to the CPU (x264) on its own if a hardware path fails partway through a job.
 - **Safe to walk away from.** A long export keeps the machine awake, works next to your output folder instead of quietly filling the Windows drive, and tells you up front if there isn't room rather than dying an hour in. Detection, preview building, and export can all be stopped mid-run.
@@ -96,6 +97,8 @@ Your video stays on your computer. Detection, proxy building, previews, and expo
 **It found too many cuts.** Lower those same two sliders. Dark scenes and quiet passages look a lot like commercial breaks. **Min commercial gap** also ignores boundary gaps shorter than its value, which helps on noisy tapes.
 
 **Segments are whole ad breaks, not single ads.** That's the detector working as designed — it splits where it finds black and silence, and how finely that lands depends on the tape. Use `S` to split a pod into individual spots.
+
+**The picture stutters, and it isn't the playback.** If it stutters the same way in the exported file, the capture is probably tearing: a few times a second the device writes a frame split across two positions with a band of corruption between. It looks like a frame rate fault, so it's easy to chase the wrong thing. The app checks each tape when you open it and turns on **Repair torn frames** in Restore if it finds any. This is a fault in the capture hardware rather than the tape, so if one tape has it, everything captured on that setup probably does.
 
 **Playback is choppy.** Wait for the preview proxy to finish building — the badge at the top-left of the player shows progress. Big captures and files on a network drive won't scrub smoothly until it's ready. You can cancel it and play the original directly instead.
 

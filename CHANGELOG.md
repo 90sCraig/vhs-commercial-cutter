@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+**Repairs torn frames.** Some capture devices lose sync a few times a second and write a frame split across two positions, with a band of corrupted data between them. On screen this reads as a stutter, which sends you looking for a frame rate problem that isn't there: the timestamps are perfectly even, and every filter aimed at cadence or brightness leaves it untouched. A new switch in Restore rebuilds those frames from the ones either side. On a four hour capture it took 14 broken frames per 500 down to none, while barely touching the good ones. It adds about a third to encode time.
+
+**Tapes are checked for tearing when you open them.** The check samples three windows of the preview copy and takes about a second. If it finds tearing it says so in the Restore panel and switches the repair on, because this is not a defect anyone spots by eye and goes looking for a setting to fix. A clean tape shows nothing and costs nothing. Measured against two captures: one tear a second on the affected one, and no false positives at all on the clean one.
+
+**Cuts per minute is no longer wrong on torn tapes.** A torn frame differs so much from both its neighbours that scene detection counted it as a cut. On an affected tape that read 36 cuts per minute against 6 once repaired, which made the commercials-cut-faster comparison worse than no number at all. Detection now repairs before it measures, but only on tapes where tearing was actually found, because doing it costs roughly three and a half times the scan time.
+
+**Undo and redo.** Fifty steps of history over the segment list, covering boundary drags, keep and skip toggles, split, merge, in and out points, keep all, and invert. `Ctrl+Z` and `Ctrl+Y`, plus buttons beside the segment actions.
+
 ## 0.5.0
 
 **Choose your keyboard layout.** Settings now offers Default or VideoReDo, and the hint line under the segment list updates to match. If you came from VideoReDo, its navigation works the way you expect: single frames on the up and down arrows, larger jumps on left and right with Shift and Ctrl as multipliers, two-minute jumps on Page Up and Page Down, and F3 and F4 to mark in and out.

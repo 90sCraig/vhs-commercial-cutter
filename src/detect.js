@@ -152,7 +152,19 @@ async function scanEvents(filePath, opts, duration, hooks = {}, range = null) {
   const silence = [];
   const scenes = [];
 
-  let vf = `blackdetect=d=${opts.blackDuration}:pix_th=${opts.blackThreshold}`;
+  // Repair torn frames before anything measures them. A torn frame differs
+  // hugely from both its neighbours, so scdet counts it as a cut — on an
+  // affected tape the rate read 36/min against 6/min once repaired, which makes
+  // the commercials-cut-faster comparison worse than useless. It also stops a
+  // tear breaking an otherwise continuous run of black.
+  //
+  // This costs real time: 3.6x the scan, measured both at full resolution and
+  // on a 480p proxy (1.6s -> 5.7s over 180s of tape). Accepted because it is
+  // gated on a defect the tape either has or does not — the flag is only set
+  // when src/tears.js finds tearing, so a clean capture pays nothing, and an
+  // affected one is choosing a slower scan over a figure wrong by 6x.
+  let vf = opts.repairTears ? 'tmedian=radius=1,' : '';
+  vf += `blackdetect=d=${opts.blackDuration}:pix_th=${opts.blackThreshold}`;
   // scdet logs a line per cut and passes every frame through, so progress
   // reporting is unaffected.
   if (opts.sceneDetect) vf += `,scdet=t=${opts.sceneThreshold}`;
