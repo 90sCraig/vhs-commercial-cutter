@@ -80,6 +80,7 @@ async function loadFile(filePath) {
     $('detectBtn').disabled = false;
     $('sampleBtn').disabled = false;
     $('calibrateBtn').disabled = false;
+    clearHistory(); // a new tape starts with a clean slate
     $('previewSampleBtn').disabled = false;
     state.sampleBoundaries = []; state.sampleRange = null;
     state.inSamplePreview = false; $('previewBanner').classList.add('hidden');
@@ -402,6 +403,9 @@ async function runDetect() {
   setBar(0);
   try {
     const res = await window.api.detect(state.filePath, detectOpts());
+    // Detection replaces the list wholesale, so anything before it is not a
+    // state worth returning to — undoing into an empty tape helps nobody.
+    clearHistory();
     state.segments = res.segments;
     state.duration = res.duration || state.duration;
     const saved = res.segments.filter((s) => s.keep).length;
@@ -492,6 +496,7 @@ function renderTimeline() {
 function startBoundaryDrag(e, i) {
   e.preventDefault();
   e.stopPropagation();
+  pushHistory(); // once per drag, not once per pixel of movement
   const tl = $('timeline');
   const move = (ev) => {
     const rect = tl.getBoundingClientRect();
@@ -709,8 +714,67 @@ function selectSegment(id, { seek = false, play = false } = {}) {
 function toggleSegment(id) {
   const seg = state.segments.find((s) => s.id === id);
   if (!seg) return;
+  pushHistory();
   seg.keep = !seg.keep;
   refreshSegments();
+}
+
+// ---- undo -------------------------------------------------------------
+//
+// Snapshots the whole cut list before each change rather than recording what
+// each operation did. Segments are small plain objects — an 84-segment tape is
+// a few kilobytes — so copying the array outright is cheaper to reason about
+// than inverse operations, and it cannot drift out of step with them the way
+// hand-written undo for eight different edits would.
+//
+// Cleared when a file is opened or detection replaces the list: undoing back
+// to "before detection" would just leave you with nothing.
+const HISTORY_LIMIT = 50;
+const history = { past: [], future: [] };
+
+function snapshotSegments() {
+  return { segments: state.segments.map((s) => ({ ...s })), selected: state.selected };
+}
+
+function restoreSnapshot(snap) {
+  state.segments = snap.segments.map((s) => ({ ...s }));
+  state.selected = snap.selected;
+}
+
+// Call BEFORE mutating, and only once the operation is certain to go ahead —
+// pushing on a rejected edit would leave a no-op sitting in the history.
+function pushHistory() {
+  history.past.push(snapshotSegments());
+  if (history.past.length > HISTORY_LIMIT) history.past.shift();
+  history.future.length = 0; // a fresh edit invalidates anything undone
+  updateHistoryButtons();
+}
+
+function undoEdit() {
+  if (!history.past.length) return;
+  history.future.push(snapshotSegments());
+  restoreSnapshot(history.past.pop());
+  refreshSegments();
+  updateHistoryButtons();
+}
+
+function redoEdit() {
+  if (!history.future.length) return;
+  history.past.push(snapshotSegments());
+  restoreSnapshot(history.future.pop());
+  refreshSegments();
+  updateHistoryButtons();
+}
+
+function clearHistory() {
+  history.past.length = 0;
+  history.future.length = 0;
+  updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  $('undoBtn').disabled = history.past.length === 0;
+  $('redoBtn').disabled = history.future.length === 0;
 }
 
 // ---- manual clip editing ----------------------------------------------
@@ -729,6 +793,7 @@ function splitAtPlayhead() {
   const t = $('player').currentTime;
   const idx = state.segments.findIndex((s) => t > s.start + 0.05 && t < s.end - 0.05);
   if (idx < 0) return toast('Move the playhead inside a clip to split it.', true);
+  pushHistory();
   const seg = state.segments[idx];
   const tail = { id: nextSegId(), start: t, end: seg.end, keep: seg.keep, confidentBoundary: false };
   seg.end = t;
@@ -744,6 +809,7 @@ function mergeWithNeighbor(dir) {
   if (idx < 0) return toast('Select a clip first.', true);
   const j = idx + dir;
   if (j < 0 || j >= state.segments.length) return;
+  pushHistory();
   const lo = Math.min(idx, j), hi = Math.max(idx, j);
   const a = state.segments[lo], b = state.segments[hi];
   a.end = b.end; recalc(a);       // keep the earlier clip's keep/cut state
@@ -757,6 +823,7 @@ function mergeWithNeighbor(dir) {
 function setInPoint() {
   const idx = selectedIndex();
   if (idx < 0) return toast('Select a clip first.', true);
+  pushHistory();
   const seg = state.segments[idx];
   const prev = state.segments[idx - 1];
   const t = clamp($('player').currentTime, (prev ? prev.start : 0) + 0.05, seg.end - 0.05);
@@ -767,6 +834,7 @@ function setInPoint() {
 function setOutPoint() {
   const idx = selectedIndex();
   if (idx < 0) return toast('Select a clip first.', true);
+  pushHistory();
   const seg = state.segments[idx];
   const next = state.segments[idx + 1];
   const t = clamp($('player').currentTime, seg.start + 0.05, (next ? next.end : state.duration) - 0.05);
@@ -1232,13 +1300,19 @@ function init() {
   }, { passive: false });
 
   $('keepAllBtn').addEventListener('click', () => {
+    if (!state.segments.length) return;
+    pushHistory();
     state.segments.forEach((s) => (s.keep = true));
     refreshSegments();
   });
   $('invertBtn').addEventListener('click', () => {
+    if (!state.segments.length) return;
+    pushHistory();
     state.segments.forEach((s) => (s.keep = !s.keep));
     refreshSegments();
   });
+  $('undoBtn').addEventListener('click', undoEdit);
+  $('redoBtn').addEventListener('click', redoEdit);
 
   // manual clip editing
   $('splitBtn').addEventListener('click', splitAtPlayhead);
@@ -1252,6 +1326,15 @@ function init() {
     if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
     if (helpModalOpen() || settingsOpen()) return;
     if (!state.filePath) return;
+    // Undo/redo sit outside the profiles — Ctrl+Z and Ctrl+Y mean the same
+    // thing in both, and everywhere else. Other Ctrl combos are left alone so
+    // the browser shortcuts underneath still work.
+    if (e.ctrlKey || e.metaKey) {
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); undoEdit(); }
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redoEdit(); }
+      return;
+    }
     const action = activeKeymap().keys[e.key.toLowerCase()];
     const run = KEY_ACTIONS[action];
     if (run) run(e, $('player'));
