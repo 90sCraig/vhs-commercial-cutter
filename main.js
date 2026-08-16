@@ -9,7 +9,6 @@ const cutpoints = require('./src/cutpoints');
 const { scanTears } = require('./src/tears');
 const fs = require('fs');
 const settings = require('./src/settings');
-const { decodeAccel } = require('./src/encoders');
 const updater = require('./src/updater');
 const { spawn } = require('child_process');
 
@@ -127,8 +126,17 @@ function scanPathFor(filePath) {
   return filePath;
 }
 
+// Detection decodes on the CPU, deliberately. It is a decode-only pass feeding
+// CPU filters (blackdetect, scdet, silencedetect) with no encoder on the other
+// end, so hardware decode buys nothing and still pays to copy every frame back
+// to system memory. Measured on a 480p proxy: 1.1s on the CPU against 4.2s with
+// -hwaccel cuda, and the penalty scales with length rather than being a fixed
+// startup cost (3.1s over 180s, 12.4s over 720s), so it is slower per frame and
+// not just slower to start.
+//
+// scanEvents() still honours opts.hwaccel if it is set, so re-enabling this is
+// one line — worth revisiting on a machine with a weak CPU.
 ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
-  opts.hwaccel = decodeAccel(settings.load().encoder); // GPU-accelerated decode
   beginJob();
   return keepAwake(() => detect(scanPathFor(filePath), opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
@@ -149,12 +157,10 @@ ipcMain.handle('tears:scan', async (_e, { filePath }) => {
 });
 
 ipcMain.handle('detect:sample', async (_e, { filePath, opts, range }) => {
-  opts.hwaccel = decodeAccel(settings.load().encoder);
   return detectSample(scanPathFor(filePath), opts, range);
 });
 
 ipcMain.handle('detect:calibrate', async (_e, { filePath, opts }) => {
-  opts.hwaccel = decodeAccel(settings.load().encoder);
   beginJob();
   return keepAwake(() => calibrate(scanPathFor(filePath), opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
@@ -204,11 +210,12 @@ ipcMain.handle('proxy:ensure', async (_e, { filePath, duration }) => {
   const s = settings.load();
   beginJob();  // so Cancel on the preview badge can stop it
   const cap = (s.proxyCacheCapGB || 0) * 1024 * 1024 * 1024;
+  // No encoder passed: proxies are always built on the CPU, and are faster and
+  // far smaller for it. See the measurements in src/proxy.js.
   return ensureProxy(filePath, {
     onProgress: (secs) =>
       win.webContents.send('proxy:progress', duration ? Math.min(1, secs / duration) : 0),
-    onFallback: () => win.webContents.send('proxy:progress', 0),
-  }, { cacheCapBytes: cap, encoder: s.encoder });
+  }, { cacheCapBytes: cap });
 });
 
 // --- settings + cache + encoder ---

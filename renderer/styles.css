@@ -294,7 +294,20 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 /* Collapsed rather than dimmed: seven greyed-out sliders you cannot use are a
    lot of panel to spend on a feature that is switched off. */
 .collapsible.off { display: none; }
-.sub-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 6px 0 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.sub-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+/* The first group in a card sits directly under the card title, which is
+   already a divider — a second rule immediately below it reads as a mistake. */
+.sub-label.first { margin-top: 0; padding-top: 0; border-top: none; }
+/* A group heading INSIDE a group (Color balance, within Correct color). Drops
+   the rule and the uppercase so the nesting is legible rather than flat. */
+.sub-label.nested {
+  text-transform: none; letter-spacing: 0; font-size: 12px;
+  margin: 12px 0 4px; padding-top: 0; border-top: none;
+}
+/* Sits under the full-width preview button, so it lines up with the button
+   rather than being indented under a switch like the other notes. */
+.preview-note { margin-left: 0; margin-top: 6px; }
+#previewSampleBtn { margin-top: 16px; }
 
 .seg-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
 .radio { flex: 1; }

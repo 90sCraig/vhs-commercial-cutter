@@ -53,6 +53,22 @@ One tape, every ad break pulled out and exported as a single file:
 
 </div>
 
+## Repairing torn frames
+
+Some capture devices lose sync a few times a second and write a frame split across two positions, with a band of corrupted data between them. At full speed it reads as a stutter, so the usual reaction is to go hunting for a frame rate problem. It isn't one: the timestamps are perfectly even, and nothing aimed at frame rate touches it.
+
+<div align="center">
+
+<img src="docs/tear-repair.gif" alt="Before and after: a torn frame rebuilt from its neighbours" width="604" />
+
+<sub>Slowed to a quarter speed. One frame in twenty is torn.</sub>
+
+</div>
+
+The repair rebuilds the broken frame from the two either side, which are undamaged. On the capture above it took 14 torn frames per 500 down to none. Every tape is checked when you open it, and the switch turns itself on if there's anything to fix.
+
+It's a fault in the capture hardware rather than the tape, so if one capture has it, everything from that setup probably does. Worth fixing at the source if you still can — the repair discards real frames, and a clean capture always beats a patched one.
+
 ## Features
 
 - **Finds the commercials on its own.** It lines up black frames with silent audio to spot the breaks. If it's guessing wrong, turn the sensitivity up or down.
@@ -61,7 +77,7 @@ One tape, every ad break pulled out and exported as a single file:
 - **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation, and gamma, fix the RGB balance, and pull the audio back in sync when it drifts.
 - **Repairs torn frames.** Some capture devices lose sync a few times a second and write a broken frame, which looks like a stutter and is easy to blame on the frame rate. Every tape gets checked when you open it, and the repair switches itself on if there's anything to fix.
 - **Exports how you want.** Commercials or show, one merged file or separate clips. Keep the source shape or reframe to 4:3 for YouTube, pick a quality, and name the files yourself. Resolution and frame rate always match your source.
-- **Uses your GPU if you've got one.** NVIDIA, Intel, or AMD for encode and decode, on export, previews, and detection. It picks the fastest one that works on your machine the first time you run it, and falls back to the CPU (x264) on its own if a hardware path fails partway through a job.
+- **Uses your GPU where it actually helps.** NVIDIA, Intel, or AMD encoding on export, picked the first time you run it, with an automatic fall back to the CPU if a hardware path fails partway through a job. Preview building and detection run on the CPU on purpose: they feed CPU filters with no hardware encoder on the other end, so offloading them to the graphics card measured slower, not faster.
 - **Safe to walk away from.** A long export keeps the machine awake, works next to your output folder instead of quietly filling the Windows drive, and tells you up front if there isn't room rather than dying an hour in. Detection, preview building, and export can all be stopped mid-run.
 - **Nothing else to install.** FFmpeg ships inside the app.
 - **Updates when you say so.** It tells you a new version is out and then waits. Nothing installs behind your back.

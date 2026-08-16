@@ -165,15 +165,19 @@
 
         <div class="card">
           <div class="card-title">2 · Restore <span class="muted">(optional)</span>
-            <span class="info" tabindex="0" data-help="Clean up the picture and sound. Enhance removes VHS grain and re-sharpens; Correct color fixes dark, washed-out, or off-tint footage; Audio drift fixes lip-sync. All of this is applied when you export, using your full-quality original (not the preview).">i</span>
+            <span class="info" tabindex="0" data-help="Clean up the picture and sound, in three groups. Repair fixes damage the capture device introduced. Picture removes VHS grain, re-sharpens, and corrects dark, washed-out or off-tint footage. Sound fixes lip-sync and evens out volume. They are applied in that order, and all of it happens at export time against your full-quality original, never the preview copy.">i</span>
           </div>
+
+          <div class="sub-label first">Repair — fix what the capture broke</div>
 
           <label class="switch">
             <input id="repairTears" type="checkbox" />
             <span>Repair torn frames</span>
           </label>
-          <small class="switch-note">Rebuilds single frames the capture device split across two positions with a band of corruption between. This is a capture fault rather than tape damage, so it tends to affect every tape from the same setup. On screen it looks like a stutter. Leave off unless a tape needs it.</small>
+          <small class="switch-note">Rebuilds frames the capture device split in two. Looks like a stutter on screen, so it's easy to blame the frame rate. Every tape is checked when you open it, and this switches on by itself if there's anything to fix.</small>
           <div id="tearNotice" class="tear-notice hidden"></div>
+
+          <div class="sub-label">Picture</div>
 
           <div class="field">
             <label>Enhance — denoise + sharpen</label>
@@ -207,7 +211,7 @@
               <label>Gamma <output id="gammaOut">1.00</output></label>
               <input id="gamma" type="range" min="0.4" max="2" step="0.01" value="1.00" />
             </div>
-            <div class="sub-label">Color balance</div>
+            <div class="sub-label nested">Color balance</div>
             <small>Shifts the midtones per channel. VHS usually drifts warm, so a touch of blue often evens it out. Leave at zero unless the tint is visibly off.</small>
             <div class="field">
               <label>Red <output id="rgbROut">0.00</output></label>
@@ -223,19 +227,21 @@
             </div>
           </div>
 
-          <div class="field" style="margin-top:12px">
+          <div class="sub-label">Sound</div>
+
+          <div class="field">
             <label>Audio drift <output id="driftOut">0 ms</output></label>
             <input id="audioDrift" type="range" min="-500" max="500" step="10" value="0" />
             <small>Shift audio to fix lip-sync. Positive = audio later.</small>
           </div>
-          <label class="switch" style="margin-top:6px">
+          <label class="switch">
             <input id="normalizeAudio" type="checkbox" />
             <span>Normalize loudness for YouTube (−14 LUFS)</span>
           </label>
           <small class="switch-note">Evens out quiet/loud commercials to a consistent volume.</small>
 
-          <button id="previewSampleBtn" class="btn full" style="margin-top:14px" disabled>▶ Preview these effects (6s)</button>
-          <small class="switch-note" style="margin-left:0">Renders a few seconds from the playhead with everything applied — the exact result, denoise/sharpen and normalized audio included. Color sliders also preview live on the player.</small>
+          <button id="previewSampleBtn" class="btn full" disabled>▶ Preview these effects (6s)</button>
+          <small class="switch-note preview-note">Renders a few seconds from the playhead with everything above applied, exactly as it will export. Color sliders also preview live on the player.</small>
         </div>
 
         <div class="card">
@@ -448,12 +454,15 @@
         <p><b>Tune without scanning the whole tape:</b> scrub to a spot you know has a commercial break, then use <em>Test here</em> (under the Detect button) to scan just a short sample. Candidate breaks show as cyan marks on the timeline. Adjust the sliders and re-test until it catches the break, then run full detection. If breaks are still missed, raise <b>Black sensitivity</b> / <b>Silence threshold</b>; if it over-cuts, lower them and raise <b>Min commercial gap</b>. Stations that never fade to black can't be detected — add those cuts by hand with <kbd>S</kbd>.</p>
 
         <h3>Restore (optional)</h3>
+        <p>Three groups, applied in the order they appear: <b>Repair</b> undoes damage, <b>Picture</b> improves what's left, <b>Sound</b> fixes the audio. All of it runs at export time against your full-quality original, never the preview copy.</p>
         <ul>
-          <li><b>Repair torn frames</b> — some capture devices lose sync a few times a second and write a frame split across two positions with a band of corruption between. On screen it looks like a stutter, so it's easy to mistake for a frame-rate problem. This rebuilds those frames from the ones either side. Every tape is checked when you open it, and this switches on by itself if tearing is found — you don't need to go looking for it. It's a fault in the capture hardware rather than the tape, so it usually affects everything captured on the same setup. Leave it off otherwise: it makes detection noticeably slower.</li>
+          <li><b>Repair torn frames</b> — some capture devices lose sync a few times a second and write a frame split across two positions with a band of corruption between. On screen it looks like a stutter, so it's easy to mistake for a frame-rate problem. This rebuilds those frames from the ones either side. Every tape is checked when you open it and this switches on by itself if tearing is found, so you don't need to go looking for it. It's a fault in the capture hardware rather than the tape, so it usually affects everything captured on the same setup. Leave it off otherwise: it makes detection noticeably slower.</li>
           <li><b>Enhance</b> — denoise + re-sharpen by tape speed (SP / LP / EP). Use heavier presets for older, noisier tapes.</li>
           <li><b>Correct color</b> — brightness, contrast, saturation, gamma, plus Red/Green/Blue balance to remove color casts.</li>
           <li><b>Audio drift</b> — shift the audio to fix lip-sync (positive = audio later).</li>
+          <li><b>Normalize loudness</b> — evens quiet and loud commercials to a consistent volume (−14 LUFS, YouTube's target).</li>
         </ul>
+        <p><b>Preview these effects</b> renders six seconds from the playhead with everything applied, so you can check the result before committing to a full export.</p>
 
         <h3>Export settings</h3>
         <ul>

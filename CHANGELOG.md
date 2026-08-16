@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1
+
+**Preview building is about two and a half times faster, by using the graphics card less.** That is the opposite of what you would expect, so here are the numbers. Building a preview copy with NVIDIA hardware decoding ran at 8x realtime; the same job on the CPU ran at 20.6x. It is not the cost of copying frames back from the card either, because keeping the whole pipeline on the GPU measured 8.3x, no better. The hardware decoder is simply slower than the CPU for this kind of footage. On a four hour capture that is roughly thirty minutes down to eleven.
+
+**Preview copies are also about three times smaller**, because the quality number meant something different to the hardware encoder than it did to the CPU one. A four hour tape now caches at around 1 GB instead of 3.6 GB, so the default 8 GB cache holds seven tapes rather than two. Existing preview copies are rebuilt once, the first time you reopen each tape.
+
+**Detection got faster for the same reason.** It is a decode only pass feeding filters that run on the CPU, with no hardware encoder on the other end, so hardware decoding was pure overhead: 1.1 seconds against 4.2 on the same scan. Graphics card encoding still handles export, where it is paired with a hardware encoder and earns its keep.
+
+**The Restore panel is organised into three groups** now that there is more in it: Repair, Picture, and Sound, in the order they are applied to the video. Colour balance sits visibly inside Correct colour rather than looking like a control of its own, and the Guide covers Normalize loudness, which it had never mentioned.
+
 ## 0.6.0
 
 **Repairs torn frames.** Some capture devices lose sync a few times a second and write a frame split across two positions, with a band of corrupted data between them. On screen this reads as a stutter, which sends you looking for a frame rate problem that isn't there: the timestamps are perfectly even, and every filter aimed at cadence or brightness leaves it untouched. A new switch in Restore rebuilds those frames from the ones either side. On a four hour capture it took 14 broken frames per 500 down to none, while barely touching the good ones. It adds about a third to encode time.

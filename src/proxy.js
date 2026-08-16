@@ -15,7 +15,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { app } = require('electron');
 const { runFfmpeg } = require('./ffmpeg');
-const { videoCodecArgs, proxyGopArgs, decodeAccel } = require('./encoders');
+const { videoCodecArgs, proxyGopArgs } = require('./encoders');
 
 function cacheDir() {
   const dir = path.join(app.getPath('userData'), 'proxies');
@@ -24,7 +24,9 @@ function cacheDir() {
 }
 
 // Bump when proxy generation changes so stale proxies are rebuilt, not reused.
-const PROXY_VERSION = 'v2-timeline';
+// v3: built on the CPU. Proxies made by the old GPU path are ~3.4x larger than
+// they need to be, so retire them rather than leave the cache full of them.
+const PROXY_VERSION = 'v3-cpu';
 
 function proxyPathFor(src) {
   const st = fs.statSync(src);
@@ -84,10 +86,31 @@ async function ensureProxy(src, hooks = {}, opts = {}) {
   }
   const tmp = `${out}.part`;
 
-  const buildArgs = (encoder) => {
-    const accel = decodeAccel(encoder);
+  // Proxies are built on the CPU regardless of the encoder setting, which is
+  // the opposite of what you would expect. Measured on a 4h 1440x1080 capture,
+  // 120s slices, reading from the same network share:
+  //
+  //   nvenc + cuda decode     15.1s    8.0x realtime   29.7 MB
+  //   nvenc + cpu decode       5.3s   22.7x realtime   29.7 MB
+  //   x264 veryfast            5.8s   20.6x realtime    8.8 MB
+  //
+  // Hardware decode costs 2.8x here. It is not the GPU->system-memory readback
+  // that `scale` forces: keeping everything on the card with
+  // -hwaccel_output_format cuda + scale_cuda measured 8.3x, no better. NVDEC is
+  // simply slower than this CPU's decoder for this content (5.6s vs 3.0s
+  // decoding 90s with no encode at all).
+  //
+  // x264 is chosen over nvenc for the encode on size, not speed — they are
+  // within 10% of each other. nvenc's -cq 28 is nowhere near x264's -crf 28, so
+  // GPU proxies run 3.4x larger. On a 4h tape that is 3.6 GB against 1.07 GB,
+  // and the default cache is 8 GB: two tapes cached instead of seven. That part
+  // is a property of the encoders and holds on any machine.
+  //
+  // The speed half was measured on one machine with a fast CPU. On a weak CPU
+  // hardware decode could well win, in which case re-add '-hwaccel' here — but
+  // keep x264 for the encode, because the size finding stands either way.
+  const buildArgs = () => {
     const args = ['-hide_banner', '-y'];
-    if (accel) args.push('-hwaccel', accel);       // GPU-accelerated source decode
     args.push(
       '-i', src,
       '-vf', 'scale=-2:480',                        // 480p, keep aspect
@@ -95,8 +118,8 @@ async function ensureProxy(src, hooks = {}, opts = {}) {
       // the timeline, which drifts out of sync with the original on VHS captures
       // that have irregular timing — so a clip would seek to the wrong content.
       '-fps_mode', 'passthrough',
-      ...videoCodecArgs(encoder, 28),
-      ...proxyGopArgs(encoder),                     // frequent keyframes → snappy seek
+      ...videoCodecArgs('cpu', 28),
+      ...proxyGopArgs('cpu'),                       // frequent keyframes → snappy seek
       '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '96k', '-ac', '2',
       '-movflags', '+faststart',
@@ -106,23 +129,17 @@ async function ensureProxy(src, hooks = {}, opts = {}) {
     return args;
   };
 
-  // Try the selected encoder; fall back to CPU if the GPU path fails.
-  const chain = opts.encoder && opts.encoder !== 'cpu' ? [opts.encoder, 'cpu'] : ['cpu'];
-  let lastErr;
-  for (const encoder of chain) {
-    try {
-      await runFfmpeg(buildArgs(encoder), { onProgress: hooks.onProgress });
-      fs.renameSync(tmp, out);
-      if (opts.cacheCapBytes) enforceCap(opts.cacheCapBytes, out);
-      return { path: out, cached: false, encoder };
-    } catch (e) {
-      lastErr = e;
-      try { fs.unlinkSync(tmp); } catch (_) {}
-      if (e.cancelled) throw e;  // aborted — do not restart on the CPU
-      if (encoder !== 'cpu' && hooks.onFallback) hooks.onFallback();
-    }
+  // No encoder fallback chain any more: the one path is the CPU path, so there
+  // is nothing to fall back to.
+  try {
+    await runFfmpeg(buildArgs(), { onProgress: hooks.onProgress });
+    fs.renameSync(tmp, out);
+    if (opts.cacheCapBytes) enforceCap(opts.cacheCapBytes, out);
+    return { path: out, cached: false, encoder: 'cpu' };
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch (_) {}
+    throw e;
   }
-  throw lastErr;
 }
 
 module.exports = { ensureProxy, proxyPathFor, cacheSize, clearCache, enforceCap };

@@ -28,6 +28,15 @@ function proxyGopArgs(encoder) {
 // Hardware-accelerated DECODE flag for the selected GPU (input side), or null.
 // Frames are copied back to system memory so CPU filters (scale, blackdetect,
 // silencedetect) still work.
+//
+// NOTHING CALLS THIS RIGHT NOW, on purpose. Every place that used to — proxy
+// building and the detection scan — measured faster without it, because both
+// feed CPU filters and neither has a hardware encoder on the far end, so the
+// readback is paid for nothing. On one RTX 5080 the penalty was 2.8x on proxy
+// building and 3.9x on detection, scaling with length rather than a fixed
+// startup cost. Keeping the helper because that finding is one machine's, and
+// a weak CPU could easily flip it; see the comments in src/proxy.js and the
+// detect handlers in main.js.
 function decodeAccel(encoder) {
   switch (encoder) {
     case 'nvenc': return 'cuda';
