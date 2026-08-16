@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.1
+
+**Drag the split between the player and the segment list.** On a tape with eighty segments the old fixed height showed about four at a time. Grab the handle above the list and pull. Double-click it to go back to the default, and the size is remembered.
+
+**Exports on a graphics card are no longer several times larger than they should be.** The quality presets are defined as x264 CRF values, and the same number was being handed straight to NVIDIA's encoder, where it means something quite different. The result was files 2.2 to 2.8 times bigger than the CPU encoder produced at the same setting, for no visible gain: measured against the source, the extra bytes bought 0.0008 of SSIM. Anyone whose encoder was picked automatically on first run has been getting those sizes, which also made every file-size figure in the app wrong for them. Now mapped from a measured ladder. Exports will be noticeably smaller and quicker to write.
+
+**If exports feel slower than they used to**, it is the torn frame repair, which costs about 39 percent and switches itself on for tapes that need it. Turn it off in Restore when a tape does not.
+
 ## 0.7.0
 
 **The old color preview was wrong, and had been since it was added.** It multiplied brightness where the export adds it. At a brightness of 0.20 the player showed 154 where your export produced 176, so anyone who set their color by eye against the preview got something different in the finished file. If you have tapes you corrected that way, they are worth a second look.

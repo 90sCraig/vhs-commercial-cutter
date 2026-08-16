@@ -79,7 +79,9 @@ body::after {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 320px;
-  grid-template-rows: 1fr 210px;
+  /* Segment list height is draggable; --seg-h is set by the splitter and
+     remembered in settings. The player takes whatever is left. */
+  grid-template-rows: 1fr var(--seg-h, 210px);
   grid-template-areas:
     "stage panel"
     "segments panel";
@@ -89,7 +91,23 @@ body::after {
 }
 .stage { grid-area: stage; display: flex; flex-direction: column; min-height: 0; gap: 12px; }
 .panel { grid-area: panel; min-height: 0; }
-.segments { grid-area: segments; min-height: 0; }
+.segments { grid-area: segments; min-height: 0; position: relative; }
+/* Drag handle sitting in the gap above the segment list. It lives inside
+   .segments and reaches up into the grid gap, so it needs no row of its own.
+   Wider hit area than it looks, because a 1px target is a bad target. */
+.row-resizer {
+  position: absolute; left: 0; right: 0; top: -11px; height: 14px;
+  cursor: row-resize; z-index: 6;
+  display: flex; align-items: center; justify-content: center;
+}
+.row-resizer::before {
+  content: ''; width: 46px; height: 3px; border-radius: 2px;
+  background: var(--line-hi); transition: background .12s;
+}
+.row-resizer:hover::before, .row-resizer.dragging::before { background: var(--accent); }
+/* Kills text selection and hover flicker across the whole window mid-drag. */
+body.row-resizing { cursor: row-resize; user-select: none; }
+body.row-resizing .segment-row { pointer-events: none; }
 
 /* Monitor header above the preview */
 .monitor-head {

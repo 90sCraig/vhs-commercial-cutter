@@ -905,6 +905,75 @@ function colorSettings() {
     b: parseFloat($('rgbB').value),
   };
 }
+// ---- resizable segment list -------------------------------------------
+// On a tape with eighty segments the default 210px shows about four at a time,
+// so the list is draggable against the player. Bounds stop either pane being
+// dragged away entirely, since a player of zero height and no way back would
+// need a reset button to recover from.
+const SEG_MIN = 120;
+const SEG_MAX_FRACTION = 0.75; // leave at least a quarter of the window as player
+
+function setSegmentsHeight(px) {
+  const layout = document.querySelector('.layout');
+  const max = Math.max(SEG_MIN, layout.clientHeight * SEG_MAX_FRACTION);
+  const h = Math.round(Math.max(SEG_MIN, Math.min(max, px)));
+  layout.style.setProperty('--seg-h', `${h}px`);
+  return h;
+}
+
+function initRowResizer() {
+  const handle = $('rowResizer');
+  const layout = document.querySelector('.layout');
+  if (!handle || !layout) return;
+
+  let dragging = false;
+
+  const onMove = (e) => {
+    if (!dragging) return;
+    // Distance from the pointer to the bottom of the layout, less the padding,
+    // is the height the list should take.
+    const rect = layout.getBoundingClientRect();
+    setSegmentsHeight(rect.bottom - e.clientY - 14);
+  };
+
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.classList.remove('row-resizing');
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    // Persist only on release: saving during the drag would write settings on
+    // every mouse move.
+    const h = parseInt(layout.style.getPropertyValue('--seg-h'), 10);
+    if (h) window.api.setSettings({ segmentsHeight: h });
+    renderTimeline(); // the timeline sizes itself to the space it has
+  };
+
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    dragging = true;
+    handle.classList.add('dragging');
+    document.body.classList.add('row-resizing');
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+
+  // Double-click restores the default, which is easier to find than a menu item.
+  handle.addEventListener('dblclick', () => {
+    setSegmentsHeight(210);
+    window.api.setSettings({ segmentsHeight: 210 });
+    renderTimeline();
+  });
+
+  // Re-clamp when the window changes, so a saved height from a big window does
+  // not swallow the player on a small one.
+  window.addEventListener('resize', () => {
+    const cur = parseInt(layout.style.getPropertyValue('--seg-h'), 10);
+    if (cur) setSegmentsHeight(cur);
+  });
+}
+
 // ---- live preview -----------------------------------------------------
 // Drives the SVG filter chain in index.html from the Restore sliders, so the
 // player shows the effect while you drag instead of after a render.
@@ -1400,6 +1469,10 @@ async function initSettings() {
   applyHelpText();
   applyKeymap();
   applySavedDetect();
+  // Restore the dragged split. setSegmentsHeight re-clamps, so a height saved
+  // on a larger window cannot swallow the player on a smaller one.
+  if (state.settings.segmentsHeight) setSegmentsHeight(state.settings.segmentsHeight);
+  initRowResizer();
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
   $('setEncoder').value = state.settings.encoder;

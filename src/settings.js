@@ -20,6 +20,10 @@ const DEFAULTS = {
   // the "i" tooltips and the Guide still explain everything either way.
   showHelpText: false,
   keymap: 'default', // 'default' | 'videoredo'
+  // Height in px of the segment list, dragged against the player. Remembered
+  // because how much of it you want depends on the tape: eighty segments needs
+  // a lot more list than eight.
+  segmentsHeight: 210,
   // Detection thresholds, remembered between sessions. Tuning these against
   // your own tapes is the whole workflow, so losing them on quit is hostile.
   detect: {
