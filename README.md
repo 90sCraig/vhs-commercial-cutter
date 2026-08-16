@@ -82,6 +82,27 @@ It's a fault in the capture hardware rather than the tape, so if one capture has
 - **Nothing else to install.** FFmpeg ships inside the app.
 - **Updates when you say so.** It tells you a new version is out and then waits. Nothing installs behind your back.
 
+## How it compares
+
+VideoReDo and Comskip are what people usually reach for, and both were built for a different job: taking commercials **out** of digital TV recordings. This one keeps the commercials, and expects an analog capture rather than a broadcast stream.
+
+| | VHS Commercial Cutter | VideoReDo | Comskip |
+|---|---|---|---|
+| **Built for** | VHS and other analog captures | Digital TV recordings | Digital TV recordings |
+| **What you get by default** | The commercials | The show | A list of where the ads are |
+| **Finds breaks using** | Black frames and audio silence together | Manual editing, with ad detection to assist | Black frames, station logo, aspect ratio, scene rate, closed captions |
+| **Interface** | Windows app | Windows app | Command line and a config file |
+| **How it cuts** | Re-encodes | Smart render: copies what it can, re-encodes only at the cuts | Does not cut. Hands the list to another tool |
+| **Cleans up the picture** | Denoise, sharpen, color, torn frames, audio drift | Not its purpose | Not its purpose |
+| **Also exports** | Cut points as CSV and an AviSynth `Trim()` chain | The edited file | EDL and many other cutlist formats |
+| **Price** | Free, MIT | Paid | Free, GPL v2 |
+
+**Where the others are better.** VideoReDo's smart rendering is the big one. It copies the untouched parts of the file and only re-encodes around each cut, so it is much faster and loses nothing in between. This app re-encodes everything, because VHS captures rarely have a usable keyframe where you actually want to cut. If you are working with digital recordings and you want the show rather than the ads, VideoReDo does that better and its editor is more capable than this one. Worth knowing that development stopped following the death of its founder, so it still works but is not gaining new versions.
+
+Comskip is the stronger detector on anything carrying a station logo or closed captions, and it runs unattended and scriptable, which this does not. Those are also the signals older analog captures tend not to have: most pre-90s broadcasts carry no logo bug, and while tape holds the line 21 captions perfectly well, consumer capture hardware usually drops them on the way in. That gap is what this fills. It is not a knock on Comskip, which is doing a harder job on better source material.
+
+If you want the show and not the ads, any of the three will get you there. The reason this exists is that the other two treat the commercials as the part to throw away.
+
 ## Local processing
 
 Your video stays on your computer. Detection, proxy building, previews, and exports all run locally through the bundled FFmpeg. The app's only outbound connection is an update check against GitHub releases, which you can turn off by ignoring it — nothing downloads or installs without you saying yes.
