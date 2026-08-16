@@ -61,9 +61,9 @@ function colorBalance(correction) {
 }
 
 // Repairs torn frames: the pixel-wise median of each frame and its two
-// neighbours. Some capture devices lose sync several times a second and emit a
+// neighbors. Some capture devices lose sync several times a second and emit a
 // frame split across two positions with a band of corrupted data between. Those
-// pixels are outliers against both neighbours, so the median discards them and
+// pixels are outliers against both neighbors, so the median discards them and
 // reconstructs from the frames either side.
 //
 // Measured on a 4h 1440x1080 capture: 14 torn frames per 500 became 0. Frames
@@ -75,7 +75,7 @@ const REPAIR_TEARS = 'tmedian=radius=1';
 
 // The ordered list of pre-reframe video filters: repair → denoise → color →
 // balance → sharpen. Repair goes first because hqdn3d is temporal as well, so
-// denoising ahead of it would blend torn-frame data into the very neighbours
+// denoising ahead of it would blend torn-frame data into the very neighbors
 // the repair needs to read. (Denoise before sharpen; sharpen last so it isn't
 // smeared.)
 function videoPreParts(correction, enhance, repairTears) {
@@ -101,8 +101,8 @@ function buildVideoFilter(correction, enhance, layout, repairTears) {
   }
   const [W, H] = dims;
   const prep = pre.length ? `${pre.join(',')},` : '';
-  // Reframing always centre-crops: scale to cover the target, then trim the
-  // overflow evenly from both sides (ffmpeg's crop centres when given no x/y).
+  // Reframing always center-crops: scale to cover the target, then trim the
+  // overflow evenly from both sides (ffmpeg's crop centers when given no x/y).
   // On a 4:3 picture inside a 16:9 frame that removes exactly the pillars.
   return { vf: `${prep}scale=${W}:${H}:force_original_aspect_ratio=increase,` +
     `crop=${W}:${H},setsar=1` };

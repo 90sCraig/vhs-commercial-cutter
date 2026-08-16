@@ -291,7 +291,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   border-radius: 8px; padding: 8px 10px; margin: 8px 0 10px 26px;
 }
 .tear-notice.hidden { display: none; }
-/* Collapsed rather than dimmed: seven greyed-out sliders you cannot use are a
+/* Collapsed rather than dimmed: seven grayed-out sliders you cannot use are a
    lot of panel to spend on a feature that is switched off. */
 .collapsible.off { display: none; }
 .sub-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 14px 0 8px; padding-top: 10px; border-top: 1px solid var(--line); }

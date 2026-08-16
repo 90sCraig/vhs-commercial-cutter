@@ -153,7 +153,7 @@ async function scanEvents(filePath, opts, duration, hooks = {}, range = null) {
   const scenes = [];
 
   // Repair torn frames before anything measures them. A torn frame differs
-  // hugely from both its neighbours, so scdet counts it as a cut — on an
+  // hugely from both its neighbors, so scdet counts it as a cut — on an
   // affected tape the rate read 36/min against 6/min once repaired, which makes
   // the commercials-cut-faster comparison worse than useless. It also stops a
   // tear breaking an otherwise continuous run of black.

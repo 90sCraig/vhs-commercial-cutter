@@ -8,10 +8,10 @@
 // perfectly even (60.000fps, every gap 16.7ms, no skips) and every filter aimed
 // at cadence or brightness leaves it untouched.
 //
-// The test: a torn frame's two NEIGHBOURS match each other far better than
+// The test: a torn frame's two NEIGHBORS match each other far better than
 // either matches the frame itself. Ordinary motion cannot produce that — frames
 // further apart differ more, not less. Nor can a scene cut, because across a cut
-// the neighbours differ from each other as well.
+// the neighbors differ from each other as well.
 //
 // Measured on an affected 4h capture: flagged frames scored 0.06–0.48 on this
 // ratio while the median frame scored 2.77. The 0.5 threshold sits in open
@@ -26,7 +26,7 @@ const PIX = W * H;
 const STEP = 5;             // sample every 5th pixel — the damage is not subtle
 const RATIO = 0.5;          // below this the middle frame is an interloper
 const FLOOR = 0.5;          // ignore near-identical frames: a still shot has no
-                            // neighbour distance to measure a ratio against
+                            // neighbor distance to measure a ratio against
 const WINDOW_FRAMES = 300;  // ~5s at 60fps, per sampled window
 const WINDOWS = 3;
 
@@ -47,7 +47,7 @@ function frameDiff(buf, i, j) {
 function countTorn(buf) {
   const frames = Math.floor(buf.length / PIX);
   if (frames < 3) return { torn: 0, frames };
-  // Adjacent differences get reused by two neighbouring tests each, so compute
+  // Adjacent differences get reused by two neighboring tests each, so compute
   // them once: d(i,i+1) is the "next" distance for frame i and the "previous"
   // distance for frame i+1.
   const adjacent = [];

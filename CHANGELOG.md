@@ -8,7 +8,7 @@
 
 **Detection got faster for the same reason.** It is a decode only pass feeding filters that run on the CPU, with no hardware encoder on the other end, so hardware decoding was pure overhead: 1.1 seconds against 4.2 on the same scan. Graphics card encoding still handles export, where it is paired with a hardware encoder and earns its keep.
 
-**The Restore panel is organised into three groups** now that there is more in it: Repair, Picture, and Sound, in the order they are applied to the video. Colour balance sits visibly inside Correct colour rather than looking like a control of its own, and the Guide covers Normalize loudness, which it had never mentioned.
+**The Restore panel is organized into three groups** now that there is more in it: Repair, Picture, and Sound, in the order they are applied to the video. Color balance sits visibly inside Correct color rather than looking like a control of its own, and the Guide covers Normalize loudness, which it had never mentioned.
 
 ## 0.6.0
 
@@ -16,7 +16,7 @@
 
 **Tapes are checked for tearing when you open them.** The check samples three windows of the preview copy and takes about a second. If it finds tearing it says so in the Restore panel and switches the repair on, because this is not a defect anyone spots by eye and goes looking for a setting to fix. A clean tape shows nothing and costs nothing. Measured against two captures: one tear a second on the affected one, and no false positives at all on the clean one.
 
-**Cuts per minute is no longer wrong on torn tapes.** A torn frame differs so much from both its neighbours that scene detection counted it as a cut. On an affected tape that read 36 cuts per minute against 6 once repaired, which made the commercials-cut-faster comparison worse than no number at all. Detection now repairs before it measures, but only on tapes where tearing was actually found, because doing it costs roughly three and a half times the scan time.
+**Cuts per minute is no longer wrong on torn tapes.** A torn frame differs so much from both its neighbors that scene detection counted it as a cut. On an affected tape that read 36 cuts per minute against 6 once repaired, which made the commercials-cut-faster comparison worse than no number at all. Detection now repairs before it measures, but only on tapes where tearing was actually found, because doing it costs roughly three and a half times the scan time.
 
 **Undo and redo.** Fifty steps of history over the segment list, covering boundary drags, keep and skip toggles, split, merge, in and out points, keep all, and invert. `Ctrl+Z` and `Ctrl+Y`, plus buttons beside the segment actions.
 
@@ -36,9 +36,9 @@ Split, merge and save/skip keep the same keys in both layouts. VideoReDo uses th
 
 **Threshold calibration, marked experimental.** Turn on *Show experimental features* in Settings and a Calibrate button appears in Detect. It samples 20 minutes of the tape at five sensitivities and keeps the highest one still finding real breaks — about 45 seconds. This exists because there is no universally right setting: two tapes from the same collection and deck wanted noticeably different values, and the shipped default was blind on one of them. It's flagged experimental because it's only been checked against those two tapes.
 
-**Help text is now optional.** Every control's explanatory line can be hidden with a switch in the top bar, off by default for a tighter panel. Tooltips and the Guide are unaffected. Min commercial gap and the colour balance sliders gained explanations they were missing.
+**Help text is now optional.** Every control's explanatory line can be hidden with a switch in the top bar, off by default for a tighter panel. Tooltips and the Guide are unaffected. Min commercial gap and the color balance sliders gained explanations they were missing.
 
-**Colour sliders collapse when Correct color is off**, rather than sitting there greyed out.
+**Color sliders collapse when Correct color is off**, rather than sitting there grayed out.
 
 **Quality presets renamed.** They used to be named after delivery formats — Blu-ray, DVD — which promised something the setting doesn't control, since resolution always follows your source. They now state file size against Archive: 100, 75, 45, 30 and 15 percent, measured on a real capture. As compression rises, tape grain gets smoothed away, which is the trade actually being made.
 
@@ -78,10 +78,10 @@ Split, merge and save/skip keep the same keys in both layouts. VideoReDo uses th
 
 **Long exports are safer to walk away from.** They keep the machine awake, stage working files beside your output instead of quietly filling the Windows drive, check there's room before starting rather than dying an hour in, and fall back to CPU if a hardware encoder gives out partway through.
 
-**Simplified export.** Vertical/social reframing, the fill options, and the resolution and frame-rate pickers are gone. Resolution and frame rate now always match your source. Frame is either the source shape or 4:3, which centre-crops — on a 4:3 picture inside a 16:9 frame that removes exactly the black pillars and keeps all the picture.
+**Simplified export.** Vertical/social reframing, the fill options, and the resolution and frame-rate pickers are gone. Resolution and frame rate now always match your source. Frame is either the source shape or 4:3, which center-crops — on a 4:3 picture inside a 16:9 frame that removes exactly the black pillars and keeps all the picture.
 
 **Playback pauses when a job starts**, instead of competing with it for the same disk.
 
 ## 0.1.0
 
-First release. Commercial detection via black-frame and audio-silence correlation, a timeline with zoom, minimap and manual clip editing, preview proxies with an LRU cache, VHS clean-up (denoise, sharpen, colour, audio drift), CPU/GPU encoding, and bundled FFmpeg.
+First release. Commercial detection via black-frame and audio-silence correlation, a timeline with zoom, minimap and manual clip editing, preview proxies with an LRU cache, VHS clean-up (denoise, sharpen, color, audio drift), CPU/GPU encoding, and bundled FFmpeg.

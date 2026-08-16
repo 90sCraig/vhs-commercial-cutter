@@ -23,14 +23,11 @@ Windows x64, tested on Windows 11. Installer and portable both available. FFmpeg
 
 ## What it does
 
-You digitize a stack of old tapes and end up with hours of footage that's half show, half commercials. The ads are the part worth digging out, and they're the part nobody has archived. This finds them for you.
+Digitize a stack of old tapes and you get hours of footage that is half show, half commercials. The ads are the part nobody archived, and the part worth digging out.
 
-It looks for the fade-to-black and the dead-air that sit between the program and the ads, cuts the tape into clips at those spots, and then hands you the wheel:
+This looks for the fade-to-black and dead air that sit between the program and the ads, then cuts the tape into clips at those points. Keep the commercials as separate clips or one merged reel, or reverse it and keep the show with the ads gone.
 
-- 🎬 **Save the commercials.** The main job. Those old ads are half the reason to keep a tape, and they can come out as separate clips or as one merged commercial reel.
-- 📺 **Or keep the show.** The reverse: the program as one file, commercials removed.
-
-It's not a full video editor and doesn't pretend to be. Load a tape, check the cuts, export.
+Load a tape, check the cuts, export. It is not a video editor.
 
 ## Download & install
 
@@ -39,7 +36,7 @@ Grab the latest [release](https://github.com/90sCraig/vhs-commercial-cutter/rele
 - **`…-Setup-<ver>.exe`** is the installer. Adds a Start-menu shortcut and an uninstaller.
 - **`…-Portable-<ver>.exe`** is one exe, no install.
 
-> It's not code-signed, so the first time you run it Windows SmartScreen throws an "unknown publisher" warning. Click **More info → Run anyway**. Windows x64 only, tested on Windows 11.
+> It is not code-signed, so the first run trips Windows SmartScreen with an "unknown publisher" warning. Click **More info → Run anyway**.
 
 ## Sample output
 
@@ -55,36 +52,35 @@ One tape, every ad break pulled out and exported as a single file:
 
 ## Repairing torn frames
 
-Some capture devices lose sync a few times a second and write a frame split across two positions, with a band of corrupted data between them. At full speed it reads as a stutter, so the usual reaction is to go hunting for a frame rate problem. It isn't one: the timestamps are perfectly even, and nothing aimed at frame rate touches it.
+Some capture devices lose sync a few times a second and write a frame split across two positions, with a band of corrupted data between. At full speed it reads as a stutter, so the instinct is to go hunting for a frame rate problem. It is not one. The timestamps are perfectly even, and nothing aimed at frame rate touches it.
 
 <div align="center">
 
-<img src="docs/tear-repair.gif" alt="Before and after: a torn frame rebuilt from its neighbours" width="604" />
+<img src="docs/tear-repair.gif" alt="Before and after: a torn frame rebuilt from its neighbors" width="604" />
 
 <sub>Slowed to a quarter speed. One frame in twenty is torn.</sub>
 
 </div>
 
-The repair rebuilds the broken frame from the two either side, which are undamaged. On the capture above it took 14 torn frames per 500 down to none. Every tape is checked when you open it, and the switch turns itself on if there's anything to fix.
+The repair rebuilds the broken frame from the two either side, which are undamaged. On the capture above that took 14 torn frames per 500 down to none. Every tape is checked when you open it, and the switch turns itself on if there is anything to fix.
 
-It's a fault in the capture hardware rather than the tape, so if one capture has it, everything from that setup probably does. Worth fixing at the source if you still can — the repair discards real frames, and a clean capture always beats a patched one.
+This is a fault in the capture hardware, not the tape, so if one capture has it, everything from that setup probably does. Fix it at the source if you still can. The repair discards real frames, and a clean capture beats a patched one.
 
 ## Features
 
-- **Finds the commercials on its own.** It lines up black frames with silent audio to spot the breaks. If it's guessing wrong, turn the sensitivity up or down.
-- **A timeline you can actually work in.** Zoom in, drag the cut points, split and merge clips, set in and out, step through frame by frame from the keyboard. There's a minimap for the wide view.
-- **Scrubs fast on huge files.** It builds a small proxy in the background so a giant MKV or a capture sitting on your network still plays smooth. The proxy cache is yours to control.
-- **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation, and gamma, fix the RGB balance, and pull the audio back in sync when it drifts.
-- **Repairs torn frames.** Some capture devices lose sync a few times a second and write a broken frame, which looks like a stutter and is easy to blame on the frame rate. Every tape gets checked when you open it, and the repair switches itself on if there's anything to fix.
-- **Exports how you want.** Commercials or show, one merged file or separate clips. Keep the source shape or reframe to 4:3 for YouTube, pick a quality, and name the files yourself. Resolution and frame rate always match your source.
-- **Uses your GPU where it actually helps.** NVIDIA, Intel, or AMD encoding on export, picked the first time you run it, with an automatic fall back to the CPU if a hardware path fails partway through a job. Preview building and detection run on the CPU on purpose: they feed CPU filters with no hardware encoder on the other end, so offloading them to the graphics card measured slower, not faster.
-- **Safe to walk away from.** A long export keeps the machine awake, works next to your output folder instead of quietly filling the Windows drive, and tells you up front if there isn't room rather than dying an hour in. Detection, preview building, and export can all be stopped mid-run.
+- **Finds the commercials on its own.** It lines up black frames with silent audio to spot the breaks. Turn the sensitivity up or down if it guesses wrong.
+- **A timeline you can work in.** Zoom, drag the cut points, split and merge clips, set in and out, step frame by frame from the keyboard. There is a minimap for the wide view.
+- **Scrubs fast on huge files.** It builds a small preview copy in the background so a giant MKV or a capture on your network still plays smooth. The cache is yours to control.
+- **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation and gamma, fix the RGB balance, repair torn frames, and pull the audio back in sync when it drifts.
+- **Exports how you want.** Commercials or show, merged or separate clips. Keep the source shape or reframe to 4:3, pick a quality, name the files yourself. Resolution and frame rate always follow your source. Cut points also export as CSV and an AviSynth `Trim()` chain for cutting elsewhere.
+- **Uses your GPU where it helps.** NVIDIA, Intel or AMD encoding on export, picked on first run, falling back to the CPU by itself if a hardware path fails mid-job. Preview building and detection stay on the CPU by design, because offloading them measured slower.
+- **Safe to walk away from.** A long export keeps the machine awake, stages files beside your output instead of filling the Windows drive, and checks for room before starting rather than dying an hour in. Anything long-running can be stopped mid-run.
 - **Nothing else to install.** FFmpeg ships inside the app.
-- **Updates when you say so.** It tells you a new version is out and then waits. Nothing installs behind your back.
+- **Updates when you say so.** It tells you a new version is out, then waits.
 
 ## How it compares
 
-VideoReDo and Comskip are what people usually reach for, and both were built for a different job: taking commercials **out** of digital TV recordings. This one keeps the commercials, and expects an analog capture rather than a broadcast stream.
+VideoReDo and Comskip are what people usually reach for. Both were built for the opposite job: taking commercials **out** of digital TV recordings. This keeps them, and expects an analog capture rather than a broadcast stream.
 
 | | VHS Commercial Cutter | VideoReDo | Comskip |
 |---|---|---|---|
@@ -97,23 +93,23 @@ VideoReDo and Comskip are what people usually reach for, and both were built for
 | **Also exports** | Cut points as CSV and an AviSynth `Trim()` chain | The edited file | EDL and many other cutlist formats |
 | **Price** | Free, MIT | Paid | Free, GPL v2 |
 
-**Where the others are better.** VideoReDo's smart rendering is the big one. It copies the untouched parts of the file and only re-encodes around each cut, so it is much faster and loses nothing in between. This app re-encodes everything, because VHS captures rarely have a usable keyframe where you actually want to cut. If you are working with digital recordings and you want the show rather than the ads, VideoReDo does that better and its editor is more capable than this one. Worth knowing that development stopped following the death of its founder, so it still works but is not gaining new versions.
+Where the others win: VideoReDo's smart rendering copies the untouched parts of a file and re-encodes only at the cuts, so it is faster and lossless in between. This re-encodes everything, because VHS captures rarely have a keyframe where you want to cut. Its development stopped after the death of its founder, so it still works but will not gain new versions.
 
-Comskip is the stronger detector on anything carrying a station logo or closed captions, and it runs unattended and scriptable, which this does not. Those are also the signals older analog captures tend not to have: most pre-90s broadcasts carry no logo bug, and while tape holds the line 21 captions perfectly well, consumer capture hardware usually drops them on the way in. That gap is what this fills. It is not a knock on Comskip, which is doing a harder job on better source material.
+Comskip detects better wherever a station logo or closed captions exist, and it runs unattended. Old analog captures usually have neither: most pre-90s broadcasts carry no logo bug, and consumer capture hardware drops the line 21 captions even though the tape holds them. That gap is what this fills.
 
-If you want the show and not the ads, any of the three will get you there. The reason this exists is that the other two treat the commercials as the part to throw away.
+Any of the three gets you the show without the ads. This one exists because the other two throw the commercials away.
 
 ## Local processing
 
-Your video stays on your computer. Detection, proxy building, previews, and exports all run locally through the bundled FFmpeg. The app's only outbound connection is an update check against GitHub releases, which you can turn off by ignoring it — nothing downloads or installs without you saying yes.
+Your video stays on your computer. Detection, preview building and export all run locally through the bundled FFmpeg. The only outbound connection is an update check against GitHub releases, and nothing downloads or installs without you saying yes.
 
 ## Quick start
 
-1. **Open a tape.** Click *Open file…* or drag a video onto the player. MP4, MKV, AVI, MOV, and most other things.
-2. **Detect the commercials.** Hit *Detect commercials*. Clips show up on the timeline, **green to keep**, **red to cut**.
+1. **Open a tape.** Click *Open file…* or drag a video onto the player. MP4, MKV, AVI, MOV and most other things.
+2. **Detect the commercials.** Hit *Detect commercials*. Clips appear on the timeline, green to keep, red to cut.
 3. **Check its work.** Click a clip to play it. Flip keep/cut with a click or `K`. Drag the yellow edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
-4. **Pick what you're making.** **Commercials** or **the show**, as **one merged file** or **separate clips**.
-5. **Export.** Choose a folder and go. It always cuts from your original file at full quality. Detection scans the small preview copy instead, which is much faster and finds the same breaks.
+4. **Pick what you're making.** Commercials or the show, as one merged file or separate clips.
+5. **Export.** Choose a folder and go. It always cuts from your original at full quality. Detection scans the small preview copy instead, which is much faster and finds the same breaks.
 
 <div align="center">
 
@@ -123,35 +119,35 @@ Your video stays on your computer. Detection, proxy building, previews, and expo
 
 <img src="docs/screenshots/settings.png" alt="Settings: proxy cache, encoder, updates" width="820" />
 
-<sub>**Settings** handles the proxy cache, the CPU/GPU encoder, and updates.</sub>
+<sub>**Settings** handles the preview cache, the CPU/GPU encoder, and updates.</sub>
 
 </div>
 
 ## Troubleshooting
 
-**It missed commercials.** Raise **Black sensitivity** in Detect and run it again — that makes it treat darker, not-quite-black frames as boundaries. If the audio between segments isn't truly silent, raise **Silence threshold** too. Some tapes just don't have clean transitions, in which case add cuts by hand with `S`.
+**It missed commercials.** Raise **Black sensitivity** in Detect and run it again, which makes it treat darker, not-quite-black frames as boundaries. If the audio between segments is not truly silent, raise **Silence threshold** too. Some tapes have no clean transitions at all, in which case add cuts by hand with `S`.
 
-**It found too many cuts.** Lower those same two sliders. Dark scenes and quiet passages look a lot like commercial breaks. **Min commercial gap** also ignores boundary gaps shorter than its value, which helps on noisy tapes.
+**It found too many cuts.** Lower those same two sliders. Dark scenes and quiet passages look a lot like commercial breaks. **Min commercial gap** ignores boundary gaps shorter than its value, which helps on noisy tapes.
 
-**Segments are whole ad breaks, not single ads.** That's the detector working as designed — it splits where it finds black and silence, and how finely that lands depends on the tape. Use `S` to split a pod into individual spots.
+**Segments are whole ad breaks, not single ads.** That is the detector working as designed. It splits where it finds black and silence, and how finely that lands depends on the tape. Use `S` to split a pod into individual spots.
 
-**The picture stutters, and it isn't the playback.** If it stutters the same way in the exported file, the capture is probably tearing: a few times a second the device writes a frame split across two positions with a band of corruption between. It looks like a frame rate fault, so it's easy to chase the wrong thing. The app checks each tape when you open it and turns on **Repair torn frames** in Restore if it finds any. This is a fault in the capture hardware rather than the tape, so if one tape has it, everything captured on that setup probably does.
+**The picture stutters, and it is not the playback.** If it stutters the same way in the exported file, the capture is probably tearing. See [Repairing torn frames](#repairing-torn-frames).
 
-**Playback is choppy.** Wait for the preview proxy to finish building — the badge at the top-left of the player shows progress. Big captures and files on a network drive won't scrub smoothly until it's ready. You can cancel it and play the original directly instead.
+**Playback is choppy.** Wait for the preview copy to finish building. The badge at the top-left of the player shows progress. Big captures and files on a network drive will not scrub smoothly until it is ready, and you can cancel it and play the original instead.
 
-**Export failed.** It checks free space before starting and will tell you if there isn't room, so start there. Hardware encoder failures fall back to the CPU on their own; if it keeps failing, set the encoder to CPU in Settings and try again.
+**Export failed.** It checks free space before starting and will tell you if there is not room, so start there. Hardware encoder failures fall back to the CPU on their own. If it keeps failing, set the encoder to CPU in Settings.
 
 ## What it isn't
 
-This is the last step, not the whole pipeline. It assumes your capture is already finished. It won't deinterlace, fix field order, or straighten a stretched aspect ratio. No capture-side work at all. Everyone's chain is different, and a wrong guess at that stage bakes into the file for good. Use the tools built for it.
+This is the last step, not the whole pipeline. It assumes your capture is finished. It will not deinterlace, fix field order, or straighten a stretched aspect ratio, and it does no capture-side work at all. Everyone's chain is different, and a wrong guess at that stage bakes into the file for good. Use the tools built for it.
 
 It handles the light stuff at the end: denoise and sharpen a little, nudge the color, even out the volume. Final polish, not technical video work.
 
 ## Project status
 
-I built this with AI for my own VHS workflow. It works on the captures and hardware I've tested, but other setups will find bugs I haven't.
+I built this with AI for my own VHS workflow. It works on the captures and hardware I have tested, but other setups will find bugs I have not.
 
-Report bugs, request features, or contribute fixes through [GitHub issues](https://github.com/90sCraig/vhs-commercial-cutter/issues). That's the only place I'm tracking them.
+Report bugs, request features, or contribute fixes through [GitHub issues](https://github.com/90sCraig/vhs-commercial-cutter/issues). That is the only place I am tracking them.
 
 ## Made by 90s Craig
 
@@ -165,7 +161,7 @@ I'm a VHS archivist in Columbus, Ohio. I find old tapes, digitize them live on s
 
 ## Building from source
 
-FFmpeg and FFprobe get pulled in during `npm install` (through `ffmpeg-static` / `ffprobe-static`) and bundled into the build, so nobody downloading the app needs them.
+FFmpeg and FFprobe are pulled in during `npm install` (through `ffmpeg-static` / `ffprobe-static`) and bundled into the build, so nobody downloading the app needs them.
 
 ```powershell
 npm install   # also grabs the bundled FFmpeg binaries
@@ -176,7 +172,7 @@ npm run pack  # unpacked app only (dist\win-unpacked)
 
 ## Releasing an update
 
-The installed app checks GitHub releases when it launches and lets the user know when a new version is out. Nothing installs without them saying yes. To put one out:
+The installed app checks GitHub releases on launch and tells the user when a new version is out. Nothing installs without them saying yes. To put one out:
 
 ```powershell
 npm run release -- patch   # 0.2.1 → 0.2.2: bump, build, publish
@@ -188,7 +184,7 @@ You'll need the GitHub CLI (`gh auth login`).
 
 ## Tech
 
-Electron, FFmpeg (bundled), electron-builder. No native modules. The app just drives FFmpeg as a subprocess.
+Electron, FFmpeg (bundled), electron-builder. No native modules. The app drives FFmpeg as a subprocess.
 
 ## License
 
