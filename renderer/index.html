@@ -9,6 +9,42 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Live preview filter chain, driven from renderer.js. Applied to the player
+       with CSS `filter: url(#liveFx)`. SVG rather than a canvas overlay so the
+       video's own controls keep working. Values here are placeholders; every
+       one is rewritten from the Restore sliders. -->
+  <svg class="filter-defs" width="0" height="0" aria-hidden="true">
+    <filter id="liveFx" color-interpolation-filters="sRGB">
+      <!-- Denoise, approximate: a blur mixed back over the original. hqdn3d is
+           spatial AND temporal, so this only stands in for the spatial half. -->
+      <feGaussianBlur id="fxBlur" in="SourceGraphic" stdDeviation="0" result="blurred" />
+      <feComposite id="fxBlurMix" in="blurred" in2="SourceGraphic" operator="arithmetic"
+                   k1="0" k2="0" k3="1" k4="0" result="denoised" />
+      <!-- Contrast and brightness. Both act on luma only in ffmpeg, so chroma
+           has to ride along untouched: out = v + (c-1)*Y + 0.5*(1-c) + b.
+           Scaling RGB directly instead moves the color too, which measured 42
+           levels off on saturated content. -->
+      <feColorMatrix id="fxLuma" in="denoised" type="matrix" result="lumaAdj"
+                     values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0" />
+      <!-- Saturation, with Rec.601 weights to match ffmpeg rather than the
+           Rec.709 weights SVG's built-in `saturate` uses. -->
+      <feColorMatrix id="fxSat" type="matrix" result="satAdj"
+                     values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0" />
+      <!-- Gamma and RGB balance as sampled curves, computed in JS so they carry
+           ffmpeg's limited-range behaviour instead of a textbook power curve. -->
+      <feComponentTransfer id="fxCurves" result="curved">
+        <feFuncR id="fxCurveR" type="identity" />
+        <feFuncG id="fxCurveG" type="identity" />
+        <feFuncB id="fxCurveB" type="identity" />
+      </feComponentTransfer>
+      <!-- Sharpen, approximate: a fixed 3x3 kernel where ffmpeg's unsharp takes
+           a radius in pixels. Playback is the 480p preview copy, so the strength
+           is scaled for the size difference against your original. -->
+      <feConvolveMatrix id="fxSharpen" in="curved" order="3" preserveAlpha="true"
+                        kernelMatrix="0 0 0  0 1 0  0 0 0" />
+    </filter>
+  </svg>
+
   <header class="topbar">
     <div class="brand">
       <span class="logo">●</span>
@@ -233,12 +269,15 @@
             <label>Audio drift <output id="driftOut">0 ms</output></label>
             <input id="audioDrift" type="range" min="-500" max="500" step="10" value="0" />
             <small>Shift audio to fix lip-sync. Positive = audio later.</small>
+            <div id="driftNote" class="live-note approx hidden"></div>
           </div>
           <label class="switch">
             <input id="normalizeAudio" type="checkbox" />
             <span>Normalize loudness for YouTube (−14 LUFS)</span>
           </label>
           <small class="switch-note">Evens out quiet/loud commercials to a consistent volume.</small>
+
+          <div id="liveNote" class="live-note hidden"></div>
 
           <button id="previewSampleBtn" class="btn full" disabled>▶ Preview these effects (6s)</button>
           <small class="switch-note preview-note">Renders a few seconds from the playhead with everything above applied, exactly as it will export. Color sliders also preview live on the player.</small>

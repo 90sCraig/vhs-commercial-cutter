@@ -291,6 +291,21 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   border-radius: 8px; padding: 8px 10px; margin: 8px 0 10px 26px;
 }
 .tear-notice.hidden { display: none; }
+/* The filter chain itself renders nothing; it exists to be referenced by
+   `filter: url(#liveFx)` on the player. */
+.filter-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+/* Says whether what you are looking at can be trusted. Green when the preview
+   matches the export, amber when part of it is a stand-in — the distinction
+   matters more than the preview itself, since a preview you cannot trust is
+   worse than none. Not a `small`, so the help switch cannot hide it. */
+.live-note {
+  font-size: 11px; line-height: 1.5; margin: 10px 0 0;
+  padding: 6px 9px; border-radius: 6px;
+  color: var(--text); background: var(--bg-3);
+  border-left: 2px solid var(--accent-2);
+}
+.live-note.approx { border-left-color: var(--amber); }
+.live-note.hidden { display: none; }
 /* Collapsed rather than dimmed: seven grayed-out sliders you cannot use are a
    lot of panel to spend on a feature that is switched off. */
 .collapsible.off { display: none; }

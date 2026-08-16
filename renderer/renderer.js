@@ -905,18 +905,229 @@ function colorSettings() {
     b: parseFloat($('rgbB').value),
   };
 }
-// Live (approximate) color preview on the player via CSS filters. Covers
-// brightness/contrast/saturation; gamma/RGB and denoise/sharpen need the
-// rendered sample preview to see accurately.
+// ---- live preview -----------------------------------------------------
+// Drives the SVG filter chain in index.html from the Restore sliders, so the
+// player shows the effect while you drag instead of after a render.
+//
+// The math here was measured against ffmpeg rather than assumed, because the
+// obvious implementations are wrong in ways you would not notice until export:
+//
+//   * eq's brightness ADDS an offset. The old CSS brightness() multiplied, so
+//     at slider 0.20 the player showed 154 where export produced 176.
+//   * eq's contrast and gamma act on luma only, leaving chroma alone. Scaling
+//     RGB channels directly also scales the color: measured 42 levels off on
+//     saturated content, against 3 for the luma-only form.
+//   * eq works on limited-range luma (16-235), so a unit of brightness covers
+//     219 levels, not 255. Hence the 255/219 scale.
+//
+// Verified against ffmpeg over ten colors and five settings, comparing the
+// whole chain rather than the model behind it:
+//
+//   defaults (b .05 c 1.10 s 1.20)   worst 4.1   mean 2.8
+//   heavy    (b .20 c 1.40 s 1.50)   worst 6.4   mean 4.4
+//   gamma 1.30 + contrast 1.2        worst 16.7  mean 4.8
+//
+// Gamma is the weak one, and unavoidably so: feComponentTransfer is per-channel
+// while eq applies gamma to luma alone, which is the same mismatch that put
+// contrast 42 levels out before it moved into the matrix above. A luma-only
+// nonlinear curve would need the difference composited back in, and feComposite
+// clamps negatives, so it cannot be expressed here. Mean error stays around 3
+// of 255 either way, which is why the note says "close" rather than "exact".
+const LIMITED = 255 / 219;      // limited-range luma spans 219 levels
+const LUMA_R = 0.299, LUMA_G = 0.587, LUMA_B = 0.114; // Rec.601, as ffmpeg uses
+
+// colorbalance's midtone weighting, sampled from ffmpeg at bm=0.30. It peaks at
+// level 127 and falls to nothing below 48 and above 206, and the shift is
+// linear in the slider amount (checked at 0.1/0.2/0.3/0.5). Hardcoded because
+// the filter's own curve is not the textbook one its name suggests.
+const BALANCE_CURVE = [
+  [0, 0], [16, 0], [31, 0], [47, 0], [62, 0.105], [79, 0.288], [94, 0.444],
+  [110, 0.627], [127, 0.706], [143, 0.654], [159, 0.471], [174, 0.301],
+  [191, 0.118], [206, 0], [222, 0], [237, 0], [255, 0],
+];
+
+function balanceWeight(level) {
+  for (let i = 1; i < BALANCE_CURVE.length; i++) {
+    const [x1, w1] = BALANCE_CURVE[i];
+    if (level <= x1) {
+      const [x0, w0] = BALANCE_CURVE[i - 1];
+      const t = x1 === x0 ? 0 : (level - x0) / (x1 - x0);
+      return w0 + (w1 - w0) * t;
+    }
+  }
+  return 0;
+}
+
+// One channel's tone curve: gamma, then color balance, sampled for feFuncX.
+// ffmpeg applies eq before colorbalance, so the order matters.
+function toneCurve(gamma, balance, steps = 33) {
+  const out = [];
+  for (let i = 0; i < steps; i++) {
+    const v = (i / (steps - 1)) * 255;
+    // gamma on the limited-range value, which is why full white lands on 248
+    let y = v;
+    if (gamma !== 1) {
+      const lim = 16 + y * (219 / 255);
+      y = (Math.pow(lim / 255, 1 / gamma) * 255 - 16) * LIMITED;
+    }
+    if (balance) y += balance * 255 * balanceWeight(Math.max(0, Math.min(255, y)));
+    out.push((Math.max(0, Math.min(255, y)) / 255).toFixed(4));
+  }
+  return out.join(' ');
+}
+
+// How much smaller the frame on screen is than the source. Sharpen and denoise
+// are measured in pixels, so a radius tuned for a 1080-line original is far too
+// strong on the 480p preview copy the player is showing.
+function previewScale() {
+  const p = $('player');
+  const srcH = (state.info && state.info.height) || 0;
+  if (!srcH || !p.videoHeight) return 1;
+  return p.videoHeight / srcH;
+}
+
+// Denoise/sharpen strength per Enhance preset, keyed to the ffmpeg values in
+// src/export.js. These are eyeball matches, not measured ones.
+const ENHANCE_LIVE = {
+  off: null,
+  sp: { blur: 0.5, mix: 0.35, sharpen: 0.4 },
+  lp: { blur: 0.9, mix: 0.50, sharpen: 0.8 },
+  ep: { blur: 1.4, mix: 0.62, sharpen: 1.2 },
+};
+
 function applyLiveColor() {
   const p = $('player');
-  if (state.inSamplePreview) return; // sample already has effects baked in
   const c = colorSettings();
-  if (!c.enabled) { p.style.filter = ''; return; }
-  const b = (1 + (c.brightness || 0)).toFixed(3);
-  const con = (c.contrast || 1).toFixed(3);
-  const sat = (c.saturation || 1).toFixed(3);
-  p.style.filter = `brightness(${b}) contrast(${con}) saturate(${sat})`;
+  const en = ENHANCE_LIVE[$('enhancePreset').value] || null;
+
+  // A rendered sample already has everything baked in; filtering it again would
+  // apply each effect twice.
+  if (state.inSamplePreview || (!c.enabled && !en)) {
+    p.style.filter = '';
+    updateLiveNote(false, false);
+    return;
+  }
+
+  const contrast = c.enabled ? (c.contrast ?? 1) : 1;
+  const bright = c.enabled ? (c.brightness ?? 0) : 0;
+  const sat = c.enabled ? (c.saturation ?? 1) : 1;
+  const gamma = c.enabled ? (c.gamma ?? 1) : 1;
+
+  // Contrast + brightness, luma only. Chroma is carried through untouched.
+  const k = contrast - 1;
+  const off = (0.5 * (1 - contrast)) + (bright * LIMITED);
+  const row = (self) => [
+    (self === 0 ? 1 : 0) + LUMA_R * k,
+    (self === 1 ? 1 : 0) + LUMA_G * k,
+    (self === 2 ? 1 : 0) + LUMA_B * k,
+    0, off,
+  ];
+  setAttr('fxLuma', 'values', [row(0), row(1), row(2), [0, 0, 0, 1, 0]]
+    .map((r) => r.map((n) => n.toFixed(5)).join(' ')).join('  '));
+
+  // Saturation with Rec.601 weights. SVG's built-in `saturate` uses Rec.709 and
+  // would drift on exactly the saturated content that shows the difference.
+  const satRow = (self) => [
+    LUMA_R * (1 - sat) + (self === 0 ? sat : 0),
+    LUMA_G * (1 - sat) + (self === 1 ? sat : 0),
+    LUMA_B * (1 - sat) + (self === 2 ? sat : 0),
+    0, 0,
+  ];
+  setAttr('fxSat', 'values', [satRow(0), satRow(1), satRow(2), [0, 0, 0, 1, 0]]
+    .map((r) => r.map((n) => n.toFixed(5)).join(' ')).join('  '));
+
+  // Gamma + per-channel balance as sampled curves.
+  const bal = c.enabled ? c : { r: 0, g: 0, b: 0 };
+  for (const [id, amount] of [['fxCurveR', bal.r], ['fxCurveG', bal.g], ['fxCurveB', bal.b]]) {
+    const el = document.getElementById(id);
+    if (gamma === 1 && !amount) { el.setAttribute('type', 'identity'); el.removeAttribute('tableValues'); continue; }
+    el.setAttribute('type', 'table');
+    el.setAttribute('tableValues', toneCurve(gamma, amount || 0));
+  }
+
+  // Denoise and sharpen, both scaled for the smaller preview frame.
+  const s = previewScale();
+  if (en) {
+    setAttr('fxBlur', 'stdDeviation', (en.blur * s).toFixed(3));
+    setAttr('fxBlurMix', 'k2', en.mix.toFixed(3));
+    setAttr('fxBlurMix', 'k3', (1 - en.mix).toFixed(3));
+    const a = en.sharpen * s;
+    setAttr('fxSharpen', 'kernelMatrix',
+      `0 ${-a} 0  ${-a} ${1 + 4 * a} ${-a}  0 ${-a} 0`);
+    setAttr('fxSharpen', 'divisor', '1');
+  } else {
+    setAttr('fxBlur', 'stdDeviation', '0');
+    setAttr('fxBlurMix', 'k2', '0');
+    setAttr('fxBlurMix', 'k3', '1');
+    setAttr('fxSharpen', 'kernelMatrix', '0 0 0  0 1 0  0 0 0');
+  }
+
+  p.style.filter = 'url(#liveFx)';
+  updateLiveNote(c.enabled, !!en);
+}
+
+function setAttr(id, name, value) {
+  const el = document.getElementById(id);
+  if (el) el.setAttribute(name, value);
+}
+
+// ---- live audio drift -------------------------------------------------
+// Routes the player through a WebAudio delay so lip-sync can be judged while
+// dragging. Only works in one direction: a delay can hold the audio back, but
+// nothing here can hold the VIDEO back, so "audio earlier" cannot be previewed.
+// Negative drift says so rather than showing an unchanged picture and letting
+// you conclude the setting does nothing.
+//
+// createMediaElementSource permanently reroutes the element's audio, so it is
+// created once and left in place with a delay of zero when unused. Built lazily
+// because an AudioContext made before any user gesture starts suspended.
+let audioGraph = null;
+
+function ensureAudioGraph() {
+  if (audioGraph) return audioGraph;
+  const p = $('player');
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createMediaElementSource(p);
+    const delay = ctx.createDelay(1.0); // slider caps at 500ms
+    src.connect(delay);
+    delay.connect(ctx.destination);
+    audioGraph = { ctx, delay };
+  } catch (_) {
+    audioGraph = { ctx: null, delay: null }; // don't retry every drag
+  }
+  return audioGraph;
+}
+
+function applyLiveAudio() {
+  const ms = parseInt($('audioDrift').value, 10) || 0;
+  const note = $('driftNote');
+  if (note) {
+    note.textContent = ms < 0
+      ? 'Pulling audio earlier cannot be previewed live. Use Preview to hear it.'
+      : '';
+    note.classList.toggle('hidden', ms >= 0);
+  }
+  if (!ms && !audioGraph) return; // nothing to do, and no need to build the graph
+  const g = ensureAudioGraph();
+  if (!g.delay) return;
+  if (g.ctx.state === 'suspended') g.ctx.resume().catch(() => {});
+  g.delay.delayTime.value = Math.max(0, ms) / 1000;
+}
+
+// Says which parts of what you are looking at can be trusted. Denoise and
+// sharpen are stand-ins: hqdn3d filters over time as well as space, and unsharp
+// takes a pixel radius that means something different on a 480p preview than on
+// your original. Both are close enough to judge by and wrong enough to check.
+function updateLiveNote(colorOn, enhanceOn) {
+  const el = $('liveNote');
+  if (!el) return;
+  if (!colorOn && !enhanceOn) { el.classList.add('hidden'); return; }
+  el.textContent = enhanceOn
+    ? 'Live: color tracks the export closely. Denoise and sharpen are approximations scaled for the preview copy — use Preview to see them properly.'
+    : 'Live: color tracks the export closely.';
+  el.classList.toggle('approx', enhanceOn);
+  el.classList.remove('hidden');
 }
 
 // Render a short sample with the full pipeline and play it in the player.
@@ -1388,6 +1599,12 @@ function init() {
   colorEnabled.addEventListener('change', syncColor); syncColor();
   ['brightness', 'contrast', 'saturation', 'gamma', 'rgbR', 'rgbG', 'rgbB'].forEach((id) =>
     $(id).addEventListener('input', applyLiveColor));
+  // Denoise/sharpen are previewed too, scaled for the smaller frame, so the
+  // Enhance picker has to re-run the chain like the sliders do.
+  $('enhancePreset').addEventListener('change', applyLiveColor);
+  // previewScale() needs videoHeight, which is only known once metadata lands.
+  $('player').addEventListener('loadedmetadata', applyLiveColor);
+  $('audioDrift').addEventListener('input', applyLiveAudio);
 
   document.querySelectorAll('input[name=mode]').forEach((r) =>
     r.addEventListener('change', updateExportSummary));
