@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+**The old color preview was wrong, and had been since it was added.** It multiplied brightness where the export adds it. At a brightness of 0.20 the player showed 154 where your export produced 176, so anyone who set their color by eye against the preview got something different in the finished file. If you have tapes you corrected that way, they are worth a second look.
+
+**The restoration controls are live now.** Drag a slider and the picture changes, instead of waiting on a six second render to see anything. Brightness, contrast, saturation, gamma and RGB balance all update as you move them, and this time the math was measured against the encoder rather than guessed at. Across ten colors and five settings it sits within about three levels out of 255 of what will actually export, which is far below what an eye can pick out. Gamma is the loosest of them at the extremes, so the panel says color "tracks closely" rather than promising an exact match.
+
+**Denoise and sharpen preview too, roughly.** They are marked as approximations because that is what they are. Both work in pixels, and playback uses the small preview copy rather than your full size original, so their strength is scaled for the difference. The real denoise also filters across time, which nothing running live can do. Use Preview for the exact result before committing to a long export.
+
+**Audio drift previews in one direction.** Pushing audio later works live. Pulling it earlier would mean holding the video back, which is not possible during playback, so a negative setting now says so instead of looking like a broken slider.
+
 ## 0.6.1
 
 **Preview building is about two and a half times faster, by using the graphics card less.** That is the opposite of what you would expect, so here are the numbers. Building a preview copy with NVIDIA hardware decoding ran at 8x realtime; the same job on the CPU ran at 20.6x. It is not the cost of copying frames back from the card either, because keeping the whole pipeline on the GPU measured 8.3x, no better. The hardware decoder is simply slower than the CPU for this kind of footage. On a four hour capture that is roughly thirty minutes down to eleven.
