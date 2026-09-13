@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, powerSaveBlocker } = require('electron');
 const path = require('path');
-const { ffprobeInfo, FFMPEG, FFPROBE, beginJob, cancelJob } = require('./src/ffmpeg');
+const { ffprobeInfo, FFMPEG, FFPROBE, withJob, cancelJob } = require('./src/ffmpeg');
 const { detect, detectSample, calibrate } = require('./src/detect');
 const { exportVideo, renderPreview } = require('./src/export');
 const os = require('os');
@@ -9,6 +9,7 @@ const cutpoints = require('./src/cutpoints');
 const { scanTears } = require('./src/tears');
 const fs = require('fs');
 const settings = require('./src/settings');
+const sessions = require('./src/sessions');
 const updater = require('./src/updater');
 const { spawn } = require('child_process');
 
@@ -32,9 +33,9 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 640,
-    backgroundColor: '#0f1113',
+    backgroundColor: '#0d0f0e',
     title: 'VHS Commercial Cutter',
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    icon: path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -44,6 +45,14 @@ function createWindow() {
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.webContents.once('did-finish-load', () => updater.initUpdater(win));
+  win.webContents.on('will-prevent-unload', (event) => {
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'warning', buttons: ['Stay', 'Close without saving'], defaultId: 0, cancelId: 0,
+      message: 'The latest edits could not be saved.',
+      detail: 'Stay to retry saving, or close and lose changes since the last successful save.',
+    });
+    if (choice === 1) event.preventDefault();
+  });
 }
 
 // On first launch, find the fastest encoder that actually works on this
@@ -84,6 +93,28 @@ app.on('window-all-closed', () => {
 });
 
 // --- IPC ---------------------------------------------------------------
+
+function handleJob(channel, handler) {
+  ipcMain.handle(channel, (...args) => withJob(() => handler(...args)));
+}
+
+ipcMain.handle('session:load', (_e, source) => sessions.load(path.join(app.getPath('userData'), 'sessions'), source));
+// Synchronous acknowledgement keeps close/file-switch protection reliable:
+// the renderer knows whether the small session document reached disk.
+ipcMain.on('session:save', (event, { source, session }) => {
+  try {
+    sessions.save(path.join(app.getPath('userData'), 'sessions'), source, session);
+    event.returnValue = { ok: true };
+  } catch (e) { event.returnValue = { ok: false, error: e.message }; }
+});
+ipcMain.handle('dialog:replaceCuts', async () => {
+  const result = await dialog.showMessageBox(win, {
+    type: 'question', buttons: ['Keep current edits', 'Run detection'], defaultId: 0, cancelId: 0,
+    message: 'Replace the current cuts with new detection results?',
+    detail: 'You can restore the current cuts with Undo after detection finishes.',
+  });
+  return result.response === 1;
+});
 
 ipcMain.handle('ffmpeg:paths', () => ({ ffmpeg: FFMPEG, ffprobe: FFPROBE }));
 ipcMain.handle('app:version', () => app.getVersion());
@@ -136,8 +167,7 @@ function scanPathFor(filePath) {
 //
 // scanEvents() still honours opts.hwaccel if it is set, so re-enabling this is
 // one line — worth revisiting on a machine with a weak CPU.
-ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
-  beginJob();
+handleJob('detect:run', async (_e, { filePath, opts }) => {
   return keepAwake(() => detect(scanPathFor(filePath), opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
   }));
@@ -146,7 +176,7 @@ ipcMain.handle('detect:run', async (_e, { filePath, opts }) => {
 // Runs on the proxy, which is local and small — a few seconds of decode. Never
 // throws into the renderer: a failed tear scan should cost a notice, not an
 // import, so it reports "inconclusive" and stays quiet.
-ipcMain.handle('tears:scan', async (_e, { filePath }) => {
+handleJob('tears:scan', async (_e, { filePath }) => {
   try {
     const scanPath = scanPathFor(filePath);
     const info = await ffprobeInfo(scanPath);
@@ -156,12 +186,11 @@ ipcMain.handle('tears:scan', async (_e, { filePath }) => {
   }
 });
 
-ipcMain.handle('detect:sample', async (_e, { filePath, opts, range }) => {
+handleJob('detect:sample', async (_e, { filePath, opts, range }) => {
   return detectSample(scanPathFor(filePath), opts, range);
 });
 
-ipcMain.handle('detect:calibrate', async (_e, { filePath, opts }) => {
-  beginJob();
+handleJob('detect:calibrate', async (_e, { filePath, opts }) => {
   return keepAwake(() => calibrate(scanPathFor(filePath), opts, {
     onProgress: (p) => win.webContents.send('detect:progress', p),
     onStatus: (s) => win.webContents.send('export:status', s),
@@ -169,7 +198,7 @@ ipcMain.handle('detect:calibrate', async (_e, { filePath, opts }) => {
 });
 
 let previewSeq = 0;
-ipcMain.handle('preview:render', async (_e, payload) => {
+handleJob('preview:render', async (_e, payload) => {
   payload.encoder = settings.load().encoder || 'cpu';
   previewSeq += 1; // unique name each time (old temp file may still be open)
   payload.outPath = path.join(os.tmpdir(), `vhs-preview-${process.pid}-${previewSeq}.mp4`);
@@ -177,9 +206,8 @@ ipcMain.handle('preview:render', async (_e, payload) => {
   return payload.outPath;
 });
 
-ipcMain.handle('export:run', async (_e, payload) => {
+handleJob('export:run', async (_e, payload) => {
   payload.encoder = settings.load().encoder || 'cpu'; // single source of truth
-  beginJob();
   return keepAwake(() => exportVideo(payload, {
     onProgress: (p) => win.webContents.send('export:progress', p),
     onStatus: (s) => win.webContents.send('export:status', s),
@@ -206,9 +234,8 @@ ipcMain.handle('cutpoints:save', async (_e, payload) => {
   return { written };
 });
 
-ipcMain.handle('proxy:ensure', async (_e, { filePath, duration }) => {
+handleJob('proxy:ensure', async (_e, { filePath, duration }) => {
   const s = settings.load();
-  beginJob();  // so Cancel on the preview badge can stop it
   const cap = (s.proxyCacheCapGB || 0) * 1024 * 1024 * 1024;
   // No encoder passed: proxies are always built on the CPU, and are faster and
   // far smaller for it. See the measurements in src/proxy.js.

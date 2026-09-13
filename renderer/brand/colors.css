@@ -1,0 +1,28 @@
+:root{
+/* Surfaces — two greys only, plus recessed wells */
+--bg:#0d0f0e;--panel:#161918;--panel-strip:#0f1211;--panel-hover:#191d1b;--inset:#0a0c0b;--inset-deep:#070908;
+/* Phosphor — the only accent hue */
+--green:#4ee88a;--green-bright:#8bffb8;--green-dim:#2a7a4c;--green-shadow:#1f7a45;--green-bg:#10241a;
+/* Lines */
+--line:#2b302d;--line-soft:#1f2321;--line-mid:#3a413d;--key-border:#0f1211;--key-edge:#0a0c0b;
+/* Ink ladder — ratios measured on --panel (#161918) */
+--ink:#e8ebe8;      /* 13.6:1 */
+--ink-2:#d5dad5;    /* 11.3:1 */
+--ink-3:#c3c9c3;    /* 9.2:1 */
+--muted:#a9b0aa;    /* 6.5:1 — default body prose */
+--muted-2:#8b918c;  /* 4.6:1 — lowest tier legal for a sentence */
+--muted-3:#7d847e;  /* 3.8:1 — mono all-caps labels <=11px only */
+--label:#6f766f;    /* 3.1:1 — labels only */
+--label-dim:#5c635e;/* 2.4:1 — labels only */
+--faint:#3a413d;    /* decorative glyphs */
+--ghost:#242a26;    /* intentionally invisible */
+/* Cream label stock — always means a physical label */
+--cream:#e9e3d0;--cream-ink:#22201a;--cream-label:#7a7566;--cream-rule:#b3ad9a;--cream-rule-2:#c9c3b0;
+/* Signal */
+--amber-bright:#ffc266;--amber:#ffa32e;--rec-red:#ff3b30;
+/* Semantic aliases */
+--surface-page:var(--bg);--surface-panel:var(--panel);--surface-strip:var(--panel-strip);--surface-well:var(--inset);
+--text-body:var(--muted);--text-title:var(--ink);--text-label:var(--label);--text-readout:var(--green);
+--border-panel:var(--line);--border-row:var(--line-soft);--border-input:var(--line-mid);--border-focus:var(--green);
+--accent:var(--green);--accent-hover:var(--green-bright);--link:var(--green);--link-hover:var(--green-bright);
+}

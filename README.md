@@ -21,13 +21,17 @@ Windows x64, tested on Windows 11. Installer and portable both available. FFmpeg
 
 ---
 
+## New in 0.8.0
+
+Automatic session saving, safer exports, corrected detection and preview timing, a refreshed interface, and a new cassette icon. See the [changelog](CHANGELOG.md#080) for the full update.
+
 ## What it does
 
 Digitize a stack of old tapes and you get hours of footage that is half show, half commercials. The ads are the part nobody archived, and the part worth digging out.
 
 This looks for the fade-to-black and dead air that sit between the program and the ads, then cuts the tape into clips at those points. Keep the commercials as separate clips or one merged reel, or reverse it and keep the show with the ads gone.
 
-Load a tape, check the cuts, export. It is not a video editor.
+Open a tape, detect breaks or cut by hand, review the save/skip choices, and export. Your edits save locally so you can come back later.
 
 ## Download & install
 
@@ -68,7 +72,7 @@ This is a fault in the capture hardware, not the tape, so if one capture has it,
 
 ## Features
 
-- **Finds the commercials on its own.** It lines up black frames with silent audio to spot the breaks. Turn the sensitivity up or down if it guesses wrong.
+- **Suggests commercial breaks for review.** Black intervals define the breaks; silent audio adds confidence. Clip length supplies an initial commercial guess. Turn the sensitivity up or down if it guesses wrong.
 - **A timeline you can work in.** Zoom, drag the cut points, split and merge clips, set in and out, step frame by frame from the keyboard. There is a minimap for the wide view.
 - **Scrubs fast on huge files.** It builds a small preview copy in the background so a giant MKV or a capture on your network still plays smooth. The cache is yours to control.
 - **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation and gamma, fix the RGB balance, repair torn frames, and pull the audio back in sync when it drifts.
@@ -86,7 +90,7 @@ VideoReDo and Comskip are what people usually reach for. Both were built for the
 |---|---|---|---|
 | **Built for** | VHS and other analog captures | Digital TV recordings | Digital TV recordings |
 | **What you get by default** | The commercials | The show | A list of where the ads are |
-| **Finds breaks using** | Black frames and audio silence together | Manual editing, with ad detection to assist | Black frames, station logo, aspect ratio, scene rate, closed captions |
+| **Finds breaks using** | Black frames; audio silence adds confidence | Manual editing, with ad detection to assist | Black frames, station logo, aspect ratio, scene rate, closed captions |
 | **Interface** | Windows app | Windows app | Command line and a config file |
 | **How it cuts** | Re-encodes | Smart render: copies what it can, re-encodes only at the cuts | Does not cut. Hands the list to another tool |
 | **Cleans up the picture** | Denoise, sharpen, color, torn frames, audio drift | Not its purpose | Not its purpose |
@@ -106,10 +110,10 @@ Your video stays on your computer. Detection, preview building and export all ru
 ## Quick start
 
 1. **Open a tape.** Click *Open file…* or drag a video onto the player. MP4, MKV, AVI, MOV and most other things.
-2. **Detect the commercials.** Hit *Detect commercials*. Clips appear on the timeline, green to keep, red to cut.
-3. **Check its work.** Click a clip to play it. Flip keep/cut with a click or `K`. Drag the yellow edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
+2. **Find candidate breaks.** Hit *Detect commercials*, or start cutting by hand. Detection uses black transitions and clip length to suggest commercials; green clips are marked save, gray clips skip.
+3. **Check its work.** Click a clip to play it. Flip save/skip with a click or `K` while the editing area has focus. Drag the white edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
 4. **Pick what you're making.** Commercials or the show, as one merged file or separate clips.
-5. **Export.** Choose a folder and go. It always cuts from your original at full quality. Detection scans the small preview copy instead, which is much faster and finds the same breaks.
+5. **Export.** Choose a folder and go. Export re-encodes from the original at your chosen quality. Detection can scan the smaller preview copy for speed; review the boundaries against your footage. Existing output files are never overwritten.
 
 <div align="center">
 
@@ -123,13 +127,28 @@ Your video stays on your computer. Detection, preview building and export all ru
 
 </div>
 
+## Resuming an edit
+
+Cuts and restoration/export settings save automatically on this computer. Reopen
+the same, unchanged video file to resume. **Save edits** saves explicitly or retries
+a failed save. If saving fails, the app blocks switching tapes and asks before
+closing without the unsaved changes. Sessions do not contain the source video;
+keep the original file in place. Moving or replacing it starts a new session.
+
+A newly opened tape starts as one skipped clip, so manual cutting works before
+detection. Running detection again asks before replacing edits and remains undoable.
+Undo history is available until another editing session is loaded.
+
+Editing shortcuts apply in the video/clip editing areas. Use `[` and `]` to move
+between clips; Tab keeps its normal focus-navigation behavior.
+
 ## Troubleshooting
 
-**It missed commercials.** Raise **Black sensitivity** in Detect and run it again, which makes it treat darker, not-quite-black frames as boundaries. If the audio between segments is not truly silent, raise **Silence threshold** too. Some tapes have no clean transitions at all, in which case add cuts by hand with `S`.
+**It missed commercials.** Raise **Black sensitivity** in Detect and run it again, which makes it treat darker, not-quite-black frames as boundaries. **Silence threshold** changes confidence only; it does not change the cuts. Some tapes have no clean transitions at all, in which case add cuts by hand with `S`.
 
-**It found too many cuts.** Lower those same two sliders. Dark scenes and quiet passages look a lot like commercial breaks. **Min commercial gap** ignores boundary gaps shorter than its value, which helps on noisy tapes.
+**It found too many cuts.** Lower **Black sensitivity**. Dark scenes can look like commercial breaks. **Min commercial length** changes the initial save/skip guess: shorter clips stay in the list, marked skip for review. It never removes their footage.
 
-**Segments are whole ad breaks, not single ads.** That is the detector working as designed. It splits where it finds black and silence, and how finely that lands depends on the tape. Use `S` to split a pod into individual spots.
+**Segments are whole ad breaks, not single ads.** That is the detector working as designed. It splits at black intervals, and how finely that lands depends on the tape. Use `S` to split a pod into individual spots.
 
 **The picture stutters, and it is not the playback.** If it stutters the same way in the exported file, the capture is probably tearing. See [Repairing torn frames](#repairing-torn-frames).
 
@@ -149,22 +168,13 @@ I built this with AI for my own VHS workflow. It works on the captures and hardw
 
 Report bugs, request features, or contribute fixes through [GitHub issues](https://github.com/90sCraig/vhs-commercial-cutter/issues). That is the only place I am tracking them.
 
-## Made by 90s Craig
-
-I'm a VHS archivist in Columbus, Ohio. I find old tapes, digitize them live on stream, and archive whatever turns up. I built this because cutting the commercials out by hand got old.
-
-- 🌐 **Site**: [90scraig.com](https://90scraig.com)
-- ▶ **YouTube**: [@90sCraig](https://www.youtube.com/@90sCraig)
-- 📸 **Instagram**: [@90s_craig](https://www.instagram.com/90s_craig/)
-- 🟣 **Twitch**: [90s_craig](https://www.twitch.tv/90s_craig)
-- 🦋 **Bluesky**: [@90scraig.com](https://bsky.app/profile/90scraig.com)
-
 ## Building from source
 
 FFmpeg and FFprobe are pulled in during `npm install` (through `ffmpeg-static` / `ffprobe-static`) and bundled into the build, so nobody downloading the app needs them.
 
 ```powershell
-npm install   # also grabs the bundled FFmpeg binaries
+npm ci        # install the locked dependencies and bundled FFmpeg binaries
+npm test      # run regression tests
 npm start     # run it in dev
 npm run dist  # build installer + portable into dist\
 npm run pack  # unpacked app only (dist\win-unpacked)
@@ -180,7 +190,7 @@ npm run release -- minor   # 0.2.1 → 0.3.0
 npm run release            # release the current version as-is
 ```
 
-You'll need the GitHub CLI (`gh auth login`).
+You'll need the GitHub CLI (`gh auth login`). Before publishing, update the changelog, run the tests, commit all release changes (including the version and lockfile), and push that commit. The release tag must point to that exact commit.
 
 ## Tech
 

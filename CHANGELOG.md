@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+
+- Editing sessions save automatically on this computer. Reopen the same unchanged source to restore cuts, selection, playback position, restoration settings, and export choices. Save edits provides an explicit save and retry action.
+- New charcoal, cream, and phosphor-green interface with bundled fonts, improved focus states, and a matching VHS cassette app icon.
+- Manual cutting is available immediately after opening a tape, before detection.
+
+### Fixed
+
+- Exports refuse existing destinations, including the source video. Files are staged beside the output and published without overwriting files created during rendering; free-space estimates include staging.
+- Cancellation belongs to each operation, so starting another job cannot revive a cancelled export or inherit its cancellation.
+- Short clips remain available for review. A tape with no detected boundaries stays as one skipped clip instead of being guessed as a commercial.
+- Sample detection uses the full scan filters, reports source timestamps, and stops at the end of the tape. Inconclusive calibration leaves the threshold unchanged.
+- Editing from a rendered sample uses source timestamps. Preview audio correction is no longer applied twice.
+- Running detection again asks before replacing edits and can be undone. Failed saves block switching sources and prompt before closing without saved edits.
+- Editing shortcuts respect controls and dialogs. Tab navigates focus; [ and ] navigate clips.
+
+### Also included since the last published release (0.7.0)
+
+- Resizable segment list with a remembered height.
+- Corrected hardware encoder quality mapping to avoid unnecessarily large exports.
+
+### Validation
+
+- 29 automated regression tests covering detection, export safety, cancellation, editing workflow, and session storage.
+- Browser workflow checks with real FFmpeg sample rendering and exports. Detection remains a suggestion to review, not a guarantee of commercial boundaries.
+
+
 ## 0.7.1
 
 **Drag the split between the player and the segment list.** On a tape with eighty segments the old fixed height showed about four at a time. Grab the handle above the list and pull. Double-click it to go back to the default, and the size is remembered.

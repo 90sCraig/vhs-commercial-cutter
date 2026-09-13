@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { AsyncLocalStorage } = require('async_hooks');
 
 // Path to the binary bundled via ffmpeg-static / ffprobe-static. When the app
 // is packaged the module lives inside app.asar, but the executable is unpacked
@@ -90,12 +91,18 @@ function parseFrameRate(str) {
 }
 
 // --- job cancellation --------------------------------------------------
-// Only one long job (a detection scan or an export) runs at a time, so a
-// single flag plus a registry of live processes covers it. Cancelling kills
-// whatever is running and makes any later spawn fail immediately, so a
-// multi-step job stops instead of starting its next step.
-const live = new Set();
-let cancelled = false;
+// Each IPC operation owns its cancellation state, including every async step.
+// Starting a preview must not revive a cancelled export or inherit its flag.
+const jobContext = new AsyncLocalStorage();
+const activeJobs = new Set();
+let defaultJob = { cancelled: false, live: new Set() };
+function currentJob() { return jobContext.getStore() || defaultJob; }
+async function withJob(fn) {
+  const job = { cancelled: false, live: new Set() };
+  activeJobs.add(job);
+  try { return await jobContext.run(job, fn); }
+  finally { activeJobs.delete(job); }
+}
 
 class CancelledError extends Error {
   constructor() {
@@ -105,21 +112,24 @@ class CancelledError extends Error {
   }
 }
 
-function beginJob() { cancelled = false; }
-function isCancelled() { return cancelled; }
+function beginJob() { defaultJob = { cancelled: false, live: new Set() }; }
+function isCancelled() { return currentJob().cancelled; }
 function cancelJob() {
-  cancelled = true;
-  for (const p of live) {
-    try { p.kill(); } catch (_) { /* already gone */ }
+  for (const job of new Set([defaultJob, ...activeJobs])) {
+    job.cancelled = true;
+    for (const p of job.live) {
+      try { p.kill(); } catch (_) { /* already gone */ }
+    }
   }
-  live.clear();
   return true;
 }
 
 // Spawns ffmpeg, streaming stderr lines to onLine. Resolves on success.
 function runFfmpeg(args, { onLine, onProgress } = {}) {
   return new Promise((resolve, reject) => {
-    if (cancelled) return reject(new CancelledError());
+    const job = currentJob();
+    const live = job.live;
+    if (job.cancelled) return reject(new CancelledError());
     const proc = spawn(FFMPEG, args);
     live.add(proc);
     let tail = '';
@@ -148,7 +158,7 @@ function runFfmpeg(args, { onLine, onProgress } = {}) {
       if (tail && onLine) onLine(tail);
       // A killed process reports a non-zero code; report it as a cancellation
       // rather than a failure so callers can tell the two apart.
-      if (cancelled) return reject(new CancelledError());
+      if (job.cancelled) return reject(new CancelledError());
       if (code === 0) resolve();
       else reject(new Error(`ffmpeg exited ${code}\n${stderrAll.slice(-2000)}`));
     });
@@ -161,7 +171,9 @@ function runFfmpeg(args, { onLine, onProgress } = {}) {
 // job so Abort still reaches it.
 function runFfmpegRaw(args, onChunk) {
   return new Promise((resolve, reject) => {
-    if (cancelled) return reject(new CancelledError());
+    const job = currentJob();
+    const live = job.live;
+    if (job.cancelled) return reject(new CancelledError());
     const proc = spawn(FFMPEG, args);
     live.add(proc);
     let errTail = '';
@@ -173,7 +185,7 @@ function runFfmpegRaw(args, onChunk) {
     proc.on('error', (e) => { live.delete(proc); reject(e); });
     proc.on('close', (code) => {
       live.delete(proc);
-      if (cancelled) return reject(new CancelledError());
+      if (job.cancelled) return reject(new CancelledError());
       if (code === 0) resolve();
       else reject(new Error(`ffmpeg exited ${code}\n${errTail.slice(-2000)}`));
     });
@@ -182,5 +194,5 @@ function runFfmpegRaw(args, onChunk) {
 
 module.exports = {
   FFMPEG, FFPROBE, ffprobeInfo, runFfmpeg, runFfmpegRaw, tmpDir: os.tmpdir(),
-  beginJob, cancelJob, isCancelled, CancelledError,
+  beginJob, cancelJob, isCancelled, CancelledError, withJob,
 };

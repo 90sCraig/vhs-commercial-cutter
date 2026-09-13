@@ -1,0 +1,44 @@
+:root{
+--font-mono:'IBM Plex Mono',ui-monospace,monospace;
+--font-display:'Archivo Narrow',system-ui,sans-serif;
+--font-body:'Archivo',system-ui,sans-serif;
+--font-hand:'Permanent Marker',cursive;
+/* Sizes */
+--fs-h1:clamp(32px,4.4vw,58px); /* @kind font */
+--fs-h2:clamp(22px,2.4vw,30px); /* @kind font */
+--fs-panel-headline:28px; /* @kind font */
+--fs-card-title:18px; /* @kind font */
+--fs-card-title-list:20px; /* @kind font */
+--fs-standfirst:18.5px; /* @kind font */
+--fs-body:16.5px; /* @kind font */
+--fs-body-sidebar:14px; /* @kind font */
+--fs-quote:20px; /* @kind font */
+--fs-meta:10.5px; /* @kind font */
+--fs-strip:9.5px; /* @kind font */
+--fs-readout:24px; /* @kind font */
+--fs-readout-label:9.5px; /* @kind font */
+--fs-key:11px; /* @kind font */
+--fs-field-label:9.5px; /* @kind font */
+--fs-input:13px; /* @kind font */
+--fs-hand:16px; /* @kind font */
+/* Line heights */
+--lh-h1:1.02; /* @kind other */
+--lh-h2:1.1; /* @kind other */
+--lh-panel-headline:1.08; /* @kind other */
+--lh-card-title:1.12; /* @kind other */
+--lh-standfirst:1.6; /* @kind other */
+--lh-body:1.75; /* @kind other */
+--lh-sidebar:1.55; /* @kind other */
+--lh-quote:1.3; /* @kind other */
+--lh-meta:1.6; /* @kind other */
+--lh-hand:1.35; /* @kind other */
+/* Tracking */
+--tr-h1:-0.015em; /* @kind other */
+--tr-meta:0.08em; /* @kind other */
+--tr-strip:0.17em; /* @kind other */
+--tr-key:0.12em; /* @kind other */
+--tr-field-label:0.18em; /* @kind other */
+--tr-readout-label:0.16em; /* @kind other */
+/* Measure */
+--measure-prose:66ch; /* @kind other */
+}

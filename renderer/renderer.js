@@ -57,44 +57,123 @@ function toast(msg, isError = false) {
   toast._t = setTimeout(() => t.classList.add('hidden'), 4200);
 }
 
-// Map a segment length to a color intensity (short = red/cut-likely, long = green).
+// Saved clips use phosphor; skipped clips use neutral gray.
 function segClass(seg) { return seg.keep ? 'keep' : 'cut'; }
 
-// ---- loading a file ---------------------------------------------------
-async function loadFile(filePath) {
-  state.filePath = filePath;
-  state.segments = [];
-  state.selected = null;
-  $('fileLabel').textContent = filePath;
-  $('tapeLabel').textContent = baseName(filePath).toUpperCase();
-  $('exportName').value = ''; // default back to the source file name
-  const player = $('player');
-  state.usingProxy = false;
-  player.src = toFileUrl(filePath); // original as immediate fallback
-  player.classList.add('ready');
-  $('playerEmpty').style.display = 'none';
+// ---- recoverable edit sessions ----------------------------------------
+const SESSION_CONTROLS = ['colorEnabled', 'brightness', 'contrast', 'saturation', 'gamma',
+  'rgbR', 'rgbG', 'rgbB', 'enhancePreset', 'repairTears', 'audioDrift', 'normalizeAudio',
+  'exportTarget', 'exportFrame', 'exportQuality', 'exportName'];
+let loadSequence = 0;
 
+function sourceTime() {
+  if (state.pendingSeekTime != null) return state.pendingSeekTime;
+  return clamp((state.inSamplePreview ? state.previewReturnTime : 0) + $('player').currentTime, 0, state.duration);
+}
+function saveEdits() {
+  if (!state.filePath || !state.info || !state.segments.length) return true;
   try {
-    state.info = await window.api.probe(filePath);
-    state.duration = state.info.duration;
+    const controls = {};
+    for (const id of SESSION_CONTROLS) {
+      const el = $(id);
+      controls[id] = el.type === 'checkbox' ? el.checked : el.value;
+    }
+    const result = window.api.saveSession(state.filePath, {
+      version: 1, duration: state.duration, segments: state.segments,
+      selected: state.selected, controls, mode: exportMode(), outputDir: state.outputDir,
+      position: sourceTime(), hasEdits: !!state.hasEdits,
+    });
+    if (!result || !result.ok) throw new Error(result?.error || 'No save acknowledgement');
+    state.unsaved = false;
+    if ($('sessionStatus')) $('sessionStatus').textContent = 'Edits saved';
+    return true;
+  } catch (e) {
+    state.unsaved = true;
+    if ($('sessionStatus')) $('sessionStatus').textContent = 'Edits not saved';
+    toast('Could not save edits: ' + e.message + '. Use Save edits to retry before closing or opening another tape.', true);
+    return false;
+  }
+}
+function restoreControls(session) {
+  for (const id of SESSION_CONTROLS) {
+    if (!Object.prototype.hasOwnProperty.call(session.controls || {}, id)) continue;
+    const el = $(id), value = session.controls[id];
+    if (el.type === 'checkbox') el.checked = value === true;
+    else el.value = String(value);
+    el.dispatchEvent(new Event('input'));
+  }
+  const mode = document.querySelector(`input[name=mode][value="${session.mode === 'split' ? 'split' : 'merged'}"]`);
+  if (mode) mode.checked = true;
+  $('colorControls').classList.toggle('off', !$('colorEnabled').checked);
+  applyLiveColor(); applyLiveAudio();
+}
+
+// Probe and recover before replacing the current tape. A failed import leaves
+// the previous cut list usable, and a failed save blocks switching files.
+async function loadFile(filePath) {
+  const sequence = ++loadSequence;
+  if (!saveEdits()) return false;
+  if (state.filePath === filePath) return true;
+  try {
+    const info = await window.api.probe(filePath);
+    if (!info.duration || !info.width) throw new Error('No usable video stream was found.');
+    const session = await window.api.loadSession(filePath);
+    if (sequence !== loadSequence || !saveEdits()) return false;
+    state.pendingSeekTime = null;
+    state.filePath = filePath;
+    state.info = info;
+    state.duration = info.duration;
+    state.proxyPath = null;
+    state.inSamplePreview = false;
+    state.previewReturnTime = 0;
+    state.previewEnd = null;
+    state.usingProxy = false;
+    state.hasEdits = !!session?.hasEdits;
+    state.restoredSession = !!session;
+    state.segments = session ? session.segments.map(s => ({ ...s, duration: s.end - s.start }))
+      : [{ id: 0, start: 0, end: info.duration, duration: info.duration, keep: false, confidentBoundary: false }];
+    state.selected = session?.selected ?? state.segments[0].id;
+    state.outputDir = session?.outputDir || null;
+    $('outputDir').value = state.outputDir || '';
+    $('outputDir').placeholder = dirName(filePath);
+    $('fileLabel').textContent = filePath;
+    $('tapeLabel').textContent = baseName(filePath);
+    $('exportName').value = '';
+    clearHistory();
+    resetTearNotice();
+    if (session) restoreControls(session);
+    applyLiveAudio();
+    const player = $('player');
+    player.src = toFileUrl(filePath);
+    player.classList.add('ready');
+    $('playerEmpty').style.display = 'none';
+    if (session?.position) {
+      state.pendingSeekTime = clamp(session.position, 0, info.duration);
+      player.addEventListener('loadedmetadata', function once() {
+        player.removeEventListener('loadedmetadata', once);
+        if (state.filePath === filePath) {
+          player.currentTime = clamp(session.position, 0, info.duration);
+          state.pendingSeekTime = null;
+        }
+      });
+    }
     $('detectBtn').disabled = false;
     $('sampleBtn').disabled = false;
     $('calibrateBtn').disabled = false;
-    clearHistory(); // a new tape starts with a clean slate
-    resetTearNotice(); // including any torn-frame finding from the last one
     $('previewSampleBtn').disabled = false;
+    $('saveEditsBtn').disabled = false;
     state.sampleBoundaries = []; state.sampleRange = null;
-    state.inSamplePreview = false; $('previewBanner').classList.add('hidden');
-    buildProxyFor(filePath); // build a fast-seeking preview in the background
-    if (!state.outputDir) $('outputDir').placeholder = dirName(filePath);
-    const i = state.info;
+    $('previewBanner').classList.add('hidden');
+    buildProxyFor(filePath);
     $('detectStats').textContent =
-      `${i.width}×${i.height} · ${i.fps ? i.fps.toFixed(2) + ' fps · ' : ''}${fmtTime(i.duration)} · ${i.vcodec}/${i.acodec || 'no audio'}`;
-    renderTimeline();
-    renderSegmentList();
-    updateExportSummary();
+      `${info.width}×${info.height} · ${info.fps ? info.fps.toFixed(2) + ' fps · ' : ''}${fmtTime(info.duration)} · ${info.vcodec}/${info.acodec || 'no audio'}`;
+    renderTimeline(); renderSegmentList(); updateExportSummary();
+    if ($('sessionStatus')) $('sessionStatus').textContent = session ? 'Edits restored' : 'Ready to edit';
+    document.querySelector('.stage')?.focus({ preventScroll: true });
+    return true;
   } catch (e) {
-    toast('Could not read file: ' + e.message, true);
+    toast('Could not open tape: ' + e.message, true);
+    return false;
   }
 }
 
@@ -171,6 +250,7 @@ function resetTearNotice() {
 // The switch gets preselected but the export is still the user's call — the
 // alternative is silently altering their footage on the strength of a heuristic.
 async function checkTears(filePath) {
+  if (state.restoredSession) return;
   try {
     const r = await window.api.scanTears(filePath);
     if (state.filePath !== filePath) return;  // switched tapes mid-scan
@@ -186,17 +266,9 @@ async function checkTears(filePath) {
 }
 
 // ---- detection --------------------------------------------------------
-// Starting points along one axis: how readily a fade counts as a break.
-// Both thresholds move together because tape wear degrades both signals — a
-// worn tape has grainy near-black AND hiss on the audio floor, and a boundary
-// needs the two to coincide, so loosening one alone finds nothing.
-//
-// Min gap RISES as strength rises: a looser detector throws more spurious
-// boundaries, so the noise filter has to work harder to stop the tape
-// shattering into fragments.
-//
-// Max commercial length is identical in all four on purpose. It describes how
-// the broadcast was structured, not how hard we are looking.
+// Presets adjust black-frame sensitivity, silence confidence and the duration
+// range guessed to be commercial. Silence never adds or removes a cut; short
+// content stays in the list, skipped by default for manual review.
 const DETECT_PRESETS = {
   strict: { blackThreshold: 0.06, silenceDb: -35, minCommercial: 8, maxCommercial: 360 },
   balanced: { blackThreshold: 0.10, silenceDb: -30, minCommercial: 8, maxCommercial: 360 },
@@ -262,7 +334,7 @@ async function runSample() {
   if (!state.filePath) return;
   const p = $('player');
   const len = parseInt($('sampleLen').value, 10);
-  const start = p.currentTime;
+  const start = sourceTime();
   $('sampleResult').textContent = 'Testing…';
   $('sampleBtn').disabled = true;
   try {
@@ -270,11 +342,10 @@ async function runSample() {
     state.sampleRange = { start: res.rangeStart, end: res.rangeStart + res.rangeDuration };
     state.sampleBoundaries = res.boundaries.map((b) => ({ mid: b.mid, confident: b.confident }));
     const s = res.stats;
-    const verdict = s.confidentBoundaries > 0
-      ? `<b>${s.confidentBoundaries}</b> boundary${s.confidentBoundaries > 1 ? 'ies' : ''} found`
-      : (s.blackEvents || s.silenceEvents
-        ? 'no black+silence match — try raising sensitivity'
-        : 'nothing detected — raise sensitivity, or no break here');
+    const candidates = res.boundaries.length;
+    const verdict = candidates
+      ? `<b>${candidates}</b> candidate break${candidates === 1 ? '' : 's'}; ${s.confidentBoundaries} backed by silence`
+      : 'no black-frame breaks found — try higher Black sensitivity or add cuts by hand';
     $('sampleResult').innerHTML =
       `Sample ${fmtTime(res.rangeStart)}–${fmtTime(state.sampleRange.end)}: ` +
       `${s.blackEvents} black / ${s.silenceEvents} silence · ${verdict}`;
@@ -304,24 +375,24 @@ function isAbort(e) { return /Cancelled/i.test((e && e.message) || ''); }
 // in a way they are not there, so those keys are not worth surrendering.
 const KEYMAPS = {
   default: {
-    hint: 'Space play · ←/→ step frame (Shift = 1s) · Tab next cut · S split · M merge · I/O set in-out · K save⁄skip · drag timeline boundaries',
+    hint: 'Space play · ←/→ step frame (Shift = 1s) · [ / ] previous/next clip · S split · M merge · I/O set in-out · K save⁄skip · drag timeline boundaries',
     keys: {
       ' ': 'playPause',
       arrowleft: 'frameBack', arrowright: 'frameFwd',
       home: 'gotoStart', end: 'gotoEnd',
-      tab: 'stepBoundary',
+      '[': 'previousBoundary', ']': 'nextBoundary',
       s: 'split', m: 'merge', i: 'markIn', o: 'markOut', k: 'toggleKeep',
     },
   },
   videoredo: {
-    hint: 'Space play · ↑/↓ step frame · ←/→ jump 1s (Shift ×2, Ctrl ×3) · PgUp/PgDn 2 min · Tab next cut · F3/F4 mark in-out · S split · M merge · K save⁄skip',
+    hint: 'Space play · ↑/↓ step frame · ←/→ jump 1s (Shift ×2, Ctrl ×3) · PgUp/PgDn 2 min · [ / ] previous/next clip · F3/F4 mark in-out · S split · M merge · K save⁄skip',
     keys: {
       ' ': 'playPause',
       arrowup: 'frameFwd', arrowdown: 'frameBack',
       arrowleft: 'coarseBack', arrowright: 'coarseFwd',
       pageup: 'jumpFwd', pagedown: 'jumpBack',
       home: 'gotoStart', end: 'gotoEnd',
-      tab: 'stepBoundary',
+      '[': 'previousBoundary', ']': 'nextBoundary',
       f3: 'markIn', f4: 'markOut',
       s: 'split', m: 'merge', k: 'toggleKeep',
     },
@@ -340,8 +411,7 @@ function seekBy(p, secs) {
 // VideoReDo's left/right multipliers: x2 with Shift, x3 with Ctrl.
 function coarseStep(e) { return e.ctrlKey ? 3 : (e.shiftKey ? 2 : 1); }
 
-// Walk the cut list from the keyboard. Reviewing 80 segments with the mouse is
-// the slow part of the job; this is the traversal VideoReDo's Tab gives you.
+// Walk clips with bracket keys, leaving Tab available for focus navigation.
 function stepBoundary(dir) {
   if (!state.segments.length) return;
   const i = selectedIndex();
@@ -361,7 +431,8 @@ const KEY_ACTIONS = {
   jumpFwd: (e, p) => { e.preventDefault(); seekBy(p, 120); },
   gotoStart: (e, p) => { e.preventDefault(); state.previewEnd = null; p.currentTime = 0; },
   gotoEnd: (e, p) => { e.preventDefault(); state.previewEnd = null; p.currentTime = Math.max(0, state.duration - 0.1); },
-  stepBoundary: (e) => { e.preventDefault(); stepBoundary(e.shiftKey ? -1 : 1); },
+  previousBoundary: (e) => { e.preventDefault(); stepBoundary(-1); },
+  nextBoundary: (e) => { e.preventDefault(); stepBoundary(1); },
   split: () => splitAtPlayhead(),
   merge: (e) => mergeWithNeighbor(e.shiftKey ? 1 : -1),
   markIn: (e) => { e.preventDefault(); setInPoint(); },
@@ -412,8 +483,8 @@ async function runCalibrate() {
   try {
     const res = await window.api.calibrate(state.filePath, detectOpts());
     if (res.inconclusive) {
-      $('calibrateStatus').textContent = 'No breaks in the sampled stretch';
-      toast('Calibration found no breaks in that part of the tape — the sliders are unchanged.', true);
+      $('calibrateStatus').textContent = 'Not enough evidence to calibrate';
+      toast('Calibration found too little reliable evidence — the sliders are unchanged.', true);
       return;
     }
     applyingPreset = true;
@@ -435,18 +506,20 @@ async function runCalibrate() {
 }
 
 async function runDetect() {
-  if (!state.filePath) return;
+  if (!state.filePath || !$('overlay').classList.contains('hidden')) return;
+  if (state.hasEdits && !await window.api.confirmReplaceCuts()) return;
+  const filePath = state.filePath;
   $('player').pause();  // playback competes with the scan for disk and decode
   state.sampleBoundaries = []; state.sampleRange = null; // clear sample overlay
-  showOverlay('Detecting commercials…', 'Scanning for black + silence boundaries');
+  showOverlay('Detecting commercials…', 'Finding black-frame breaks and checking audio confidence');
   setBar(0);
   try {
-    const res = await window.api.detect(state.filePath, detectOpts());
-    // Detection replaces the list wholesale, so anything before it is not a
-    // state worth returning to — undoing into an empty tape helps nobody.
-    clearHistory();
+    const res = await window.api.detect(filePath, detectOpts());
+    if (state.filePath !== filePath) return;
+    pushHistory();
     state.segments = res.segments;
     state.duration = res.duration || state.duration;
+    state.selected = res.segments[0]?.id ?? null;
     const saved = res.segments.filter((s) => s.keep).length;
     $('detectStats').textContent =
       `${res.segments.length} segments · ${res.stats.confidentBoundaries} strong boundaries · ` +
@@ -454,8 +527,11 @@ async function runDetect() {
     renderTimeline();
     renderSegmentList();
     updateExportSummary();
-    $('exportBtn').disabled = false;
-    toast(`Found ${saved} commercial${saved === 1 ? '' : 's'} to save (${res.segments.length} segments).`);
+    state.hasEdits = true;
+    saveEdits();
+    toast(res.boundaries.length
+      ? `Marked ${saved} possible commercial${saved === 1 ? '' : 's'} to save (${res.segments.length} segments). Review the cuts.`
+      : 'No breaks found. The recording is skipped by default; add cuts by hand.');
   } catch (e) {
     if (isAbort(e)) toast('Detection aborted.');
     else toast('Detection failed: ' + e.message, true);
@@ -494,7 +570,7 @@ function renderTimeline() {
   }
   // Draggable handles at each internal boundary (segments are contiguous).
   // Zoomed out on a tape with many breaks they crowd together, stop reading as
-  // handles, and start looking like yellow segments of their own — so skip any
+  // handles, and start looking like white segments of their own — so skip any
   // that wouldn't have room to be grabbed. Zooming in brings them back.
   const trackPx = ($('timelineScroll').clientWidth || 800) * (state.zoom || 1);
   const MIN_HANDLE_GAP_PX = 14;
@@ -533,6 +609,7 @@ function renderTimeline() {
 }
 
 function startBoundaryDrag(e, i) {
+  if (state.inSamplePreview) editTime();
   e.preventDefault();
   e.stopPropagation();
   pushHistory(); // once per drag, not once per pixel of movement
@@ -551,6 +628,8 @@ function startBoundaryDrag(e, i) {
     document.removeEventListener('pointerup', up);
     renderSegmentList();
     updateExportSummary();
+    state.hasEdits = true;
+    saveEdits();
   };
   document.addEventListener('pointermove', move);
   document.addEventListener('pointerup', up);
@@ -689,7 +768,7 @@ function scrollSegIntoView(seg) {
 function renderSegmentList() {
   const list = $('segmentList');
   if (state.segments.length === 0) {
-    list.innerHTML = '<div class="empty-note">Load a capture and run detection to see segments.</div>';
+    list.innerHTML = '<div class="empty-note">Open a tape to cut manually or run detection.</div>';
     $('segCount').textContent = 'Segments';
     return;
   }
@@ -766,8 +845,8 @@ function toggleSegment(id) {
 // than inverse operations, and it cannot drift out of step with them the way
 // hand-written undo for eight different edits would.
 //
-// Cleared when a file is opened or detection replaces the list: undoing back
-// to "before detection" would just leave you with nothing.
+// Cleared only when a different editing session is loaded. Detection results
+// are undoable just like manual cuts.
 const HISTORY_LIMIT = 50;
 const history = { past: [], future: [] };
 
@@ -821,15 +900,26 @@ function refreshSegments() {
   renderTimeline();
   renderSegmentList();
   updateExportSummary();
+  state.hasEdits = true;
+  saveEdits();
 }
 function recalc(seg) { seg.duration = seg.end - seg.start; }
 function nextSegId() { return state.segments.reduce((m, s) => Math.max(m, s.id), -1) + 1; }
 function selectedIndex() { return state.segments.findIndex((s) => s.id === state.selected); }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
-// Split the clip under the playhead into two at the current time.
+function editTime() {
+  const t = sourceTime();
+  if (state.inSamplePreview) {
+    state.previewReturnTime = t;
+    exitSamplePreview();
+  }
+  return t;
+}
+
+// Split the clip under the source playhead, including from an effects sample.
 function splitAtPlayhead() {
-  const t = $('player').currentTime;
+  const t = editTime();
   const idx = state.segments.findIndex((s) => t > s.start + 0.05 && t < s.end - 0.05);
   if (idx < 0) return toast('Move the playhead inside a clip to split it.', true);
   pushHistory();
@@ -865,7 +955,7 @@ function setInPoint() {
   pushHistory();
   const seg = state.segments[idx];
   const prev = state.segments[idx - 1];
-  const t = clamp($('player').currentTime, (prev ? prev.start : 0) + 0.05, seg.end - 0.05);
+  const t = clamp(editTime(), (prev ? prev.start : 0) + 0.05, seg.end - 0.05);
   seg.start = t; recalc(seg);
   if (prev) { prev.end = t; recalc(prev); }
   refreshSegments();
@@ -876,7 +966,7 @@ function setOutPoint() {
   pushHistory();
   const seg = state.segments[idx];
   const next = state.segments[idx + 1];
-  const t = clamp($('player').currentTime, seg.start + 0.05, (next ? next.end : state.duration) - 0.05);
+  const t = clamp(editTime(), seg.start + 0.05, (next ? next.end : state.duration) - 0.05);
   seg.end = t; recalc(seg);
   if (next) { next.start = t; recalc(next); }
   refreshSegments();
@@ -915,7 +1005,14 @@ const SEG_MAX_FRACTION = 0.75; // leave at least a quarter of the window as play
 
 function setSegmentsHeight(px) {
   const layout = document.querySelector('.layout');
-  const max = Math.max(SEG_MIN, layout.clientHeight * SEG_MAX_FRACTION);
+  const css = getComputedStyle(layout);
+  const monitor = document.querySelector('.monitor-head');
+  const timeline = document.querySelector('.timeline-block');
+  const stageMin = monitor.offsetHeight + timeline.offsetHeight
+    + parseFloat(getComputedStyle(timeline).marginTop) + 100;
+  const available = layout.clientHeight - parseFloat(css.paddingTop)
+    - parseFloat(css.paddingBottom) - parseFloat(css.rowGap);
+  const max = Math.max(SEG_MIN, Math.min(layout.clientHeight * SEG_MAX_FRACTION, available - stageMin));
   const h = Math.round(Math.max(SEG_MIN, Math.min(max, px)));
   layout.style.setProperty('--seg-h', `${h}px`);
   return h;
@@ -933,7 +1030,7 @@ function initRowResizer() {
     // Distance from the pointer to the bottom of the layout, less the padding,
     // is the height the list should take.
     const rect = layout.getBoundingClientRect();
-    setSegmentsHeight(rect.bottom - e.clientY - 14);
+    setSegmentsHeight(rect.bottom - e.clientY - parseFloat(getComputedStyle(layout).paddingBottom));
   };
 
   const onUp = () => {
@@ -1181,7 +1278,7 @@ function applyLiveAudio() {
   const g = ensureAudioGraph();
   if (!g.delay) return;
   if (g.ctx.state === 'suspended') g.ctx.resume().catch(() => {});
-  g.delay.delayTime.value = Math.max(0, ms) / 1000;
+  g.delay.delayTime.value = state.inSamplePreview ? 0 : Math.max(0, ms) / 1000;
 }
 
 // Says which parts of what you are looking at can be trusted. Denoise and
@@ -1203,7 +1300,8 @@ function updateLiveNote(colorOn, enhanceOn) {
 async function renderSamplePreview() {
   if (!state.filePath) return;
   const p = $('player');
-  const start = p.currentTime;
+  const filePath = state.filePath;
+  const start = state.inSamplePreview ? state.previewReturnTime : sourceTime();
   if (!state.inSamplePreview) state.previewReturnTime = start;
   $('previewSampleBtn').disabled = true;
   setProxyStatus('Rendering preview…', { spinning: true });
@@ -1212,7 +1310,7 @@ async function renderSamplePreview() {
       // renderPreview() destructures `input` — sending `filePath` silently
       // handed ffmpeg undefined. Preview deliberately uses the original, not
       // the proxy: the point is to show exactly what export will produce.
-      input: state.filePath,
+      input: filePath,
       start,
       duration: 6,
       correction: colorSettings(),
@@ -1223,7 +1321,9 @@ async function renderSamplePreview() {
       audioDriftMs: parseInt($('audioDrift').value, 10),
       normalizeAudio: $('normalizeAudio').checked,
     });
+    if (state.filePath !== filePath) return;
     state.inSamplePreview = true;
+    applyLiveAudio();
     p.style.filter = ''; // effects are baked into the render
     p.src = toFileUrl(out);
     p.addEventListener('loadedmetadata', function once() {
@@ -1246,12 +1346,15 @@ function exitSamplePreview() {
   $('previewBanner').classList.add('hidden');
   const back = state.proxyPath || state.filePath;
   const t = state.previewReturnTime;
+  state.pendingSeekTime = t;
   p.src = toFileUrl(back);
   p.addEventListener('loadedmetadata', function once() {
     p.removeEventListener('loadedmetadata', once);
     try { p.currentTime = t; } catch (_) {}
+    state.pendingSeekTime = null;
   });
   applyLiveColor();
+  applyLiveAudio();
 }
 
 function exportMode() {
@@ -1575,6 +1678,16 @@ function init() {
     const f = await window.api.openVideo();
     if (f) loadFile(f);
   });
+  $('saveEditsBtn').addEventListener('click', () => { if (saveEdits()) toast('Edits saved. Reopen this tape to resume.'); });
+  window.addEventListener('beforeunload', (e) => {
+    if (!saveEdits()) { e.preventDefault(); e.returnValue = false; }
+  });
+  document.querySelector('.panel').addEventListener('change', () => saveEdits());
+  document.querySelectorAll('.stage, .segments').forEach(area => {
+    area.addEventListener('pointerdown', e => {
+      if (!e.target.closest('button, input, select, video, summary, .info')) area.focus({ preventScroll: true });
+    });
+  });
   $('detectBtn').addEventListener('click', runDetect);
   $('calibrateBtn').addEventListener('click', runCalibrate);
   $('cutPointsBtn').addEventListener('click', saveCutPoints);
@@ -1591,7 +1704,7 @@ function init() {
 
   $('folderBtn').addEventListener('click', async () => {
     const d = await window.api.openFolder();
-    if (d) { state.outputDir = d; $('outputDir').value = d; }
+    if (d) { state.outputDir = d; $('outputDir').value = d; saveEdits(); }
   });
 
   // zoom controls
@@ -1648,7 +1761,9 @@ function init() {
 
   document.addEventListener('keydown', (e) => {
     const tag = (e.target.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+    if (['input', 'textarea', 'select', 'button', 'summary', 'video'].includes(tag) || e.target.isContentEditable) return;
+    if (!e.target.closest('.stage, .segments')) return;
+    if (!$('overlay').classList.contains('hidden')) return;
     if (helpModalOpen() || settingsOpen()) return;
     if (!state.filePath) return;
     // Undo/redo sit outside the profiles — Ctrl+Z and Ctrl+Y mean the same
@@ -1658,7 +1773,8 @@ function init() {
       const k = e.key.toLowerCase();
       if (k === 'z' && !e.shiftKey) { e.preventDefault(); undoEdit(); }
       else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redoEdit(); }
-      return;
+      if (!(activeKeymap() === KEYMAPS.videoredo && e.ctrlKey && !e.metaKey
+          && ['ArrowLeft', 'ArrowRight'].includes(e.key))) return;
     }
     const action = activeKeymap().keys[e.key.toLowerCase()];
     const run = KEY_ACTIONS[action];

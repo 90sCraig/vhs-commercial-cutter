@@ -47,18 +47,19 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="logo">●</span>
-      <div class="brand-name">VHS Commercial Cutter</div>
+      <h1 class="app-name">VHS Commercial Cutter</h1>
     </div>
     <div class="topbar-actions">
       <span id="fileLabel" class="file-label">No file loaded</span>
+      <span id="sessionStatus" class="session-status" role="status"></span>
+      <button id="saveEditsBtn" class="btn" disabled>Save edits</button>
       <label class="mini-switch" title="Show or hide the explanatory text under the controls">
         <span>Help</span>
         <input id="helpTextToggle" type="checkbox" />
         <span class="mini-track"><span class="mini-knob"></span></span>
         <span id="helpTextState" class="mini-state">Off</span>
       </label>
-      <button id="settingsBtn" class="btn" title="Settings">⚙ Settings</button>
+      <button id="settingsBtn" class="btn" title="Settings">Settings</button>
       <button id="guideBtn" class="btn" title="How to use VHS Commercial Cutter">Guide</button>
       <button id="openBtn" class="btn btn-primary">Open file…</button>
     </div>
@@ -66,7 +67,7 @@
 
   <main class="layout">
     <!-- LEFT: preview + timeline -->
-    <section class="stage">
+    <section class="stage" tabindex="0" aria-label="Video editing area">
       <div class="monitor-head">
         <span class="rec"><i class="rec-dot"></i> Preview</span>
         <span class="tape-label" id="tapeLabel">NO TAPE</span>
@@ -86,8 +87,9 @@
         </div>
         <div id="playerEmpty" class="player-empty">
           <div class="drop-hint">
-            <span class="big">Drop a video file here</span>
-            <span class="small">or use “Open file…”. MP4 / MKV / AVI / MOV</span>
+            <span class="empty-glyph" aria-hidden="true">▶</span>
+            <span class="big">Load a tape.</span>
+            <span class="small">Drop a video here or choose “Open file…”.<br>MP4 / MKV / AVI / MOV</span>
           </div>
         </div>
       </div>
@@ -95,7 +97,7 @@
       <div class="timeline-block">
         <div class="timeline-head">
           <span id="timelineTitle">Timeline</span>
-          <span class="info" tabindex="0" data-help="Each block is a clip — green = SAVE (a commercial you're keeping), red = SKIP. Click to play it. Drag the yellow handles to move a boundary. Double-click a block to flip save/skip. Zoom with the slider, +/−, or Ctrl+scroll; drag the mini overview below to pan.">i</span>
+          <span class="info" tabindex="0" data-help="Each block is a clip — green = SAVE (a commercial you're keeping), gray = SKIP. Click to play it. Drag the white handles to move a boundary. Double-click a block to flip save/skip. Zoom with the slider, +/−, or Ctrl+scroll; drag the mini overview below to pan.">i</span>
           <div class="timeline-tools">
             <span id="timelineLegend" class="legend">
               <i class="sw keep"></i> save
@@ -131,10 +133,10 @@
 
         <div class="card">
           <div class="card-title">1 · Detect commercials
-            <span class="info" tabindex="0" data-help="Scans the tape for fade-to-black plus audio silence — the marks TV stations put between the show and the ads — and splits it into clips. Click 'Detect commercials' to run it. Tune the sliders below if it misses or over-splits.">i</span>
+            <span class="info" tabindex="0" data-help="Splits the tape at black-frame intervals. Audio silence adds confidence but does not change the cuts. Clip length determines the initial save/skip guess. Click 'Detect commercials' to run it. Tune the sliders below if it misses or over-splits.">i</span>
           </div>
           <div class="field">
-            <label>Detection strength <span class="info" tabindex="0" data-help="How hard it looks for a break. Stricter wants near-black and near-silence, so it finds fewer breaks but rarely invents one. More sensitive accepts grainy black and tape hiss, which is what a worn tape gives you — at the cost of splitting on dark, quiet moments in the show. Missed breaks? Go up a step. Too many cuts? Go down. These are starting points, not measurements — scrub to a break and use 'Test here' before scanning the whole tape.">i</span></label>
+            <label>Detection strength <span class="info" tabindex="0" data-help="How readily dark frames count as breaks. More sensitive settings may also split dark scenes in the show. Presets also adjust silence confidence and the minimum length guessed to be commercial; silence does not change the cuts. Missed breaks? Go up a step. Too many cuts? Go down. These are starting points, not measurements — scrub to a break and use 'Test here' before scanning the whole tape.">i</span></label>
             <select id="detectPreset">
               <option value="strict">Strict — clean tape, crisp fades</option>
               <option value="balanced" selected>Balanced — most tapes</option>
@@ -156,19 +158,19 @@
             <small>Higher = treats darker (not pure black) frames as boundaries.</small>
           </div>
           <div class="field">
-            <label>Silence threshold <output id="silenceOut">-30 dB</output></label>
+            <label>Silence threshold <span class="info" tabindex="0" data-help="Silence adds confidence to an existing black-frame break. It does not add or remove cuts.">i</span><output id="silenceOut">-30 dB</output></label>
             <input id="silenceDb" type="range" min="-50" max="-15" step="1" value="-30" />
-            <small>Quieter audio must fall below this to count as a drop.</small>
+            <small>Audio below this level supports a break’s confidence. This does not add or remove cuts.</small>
           </div>
           <div class="field">
-            <label>Min commercial gap <output id="minCommercialOut">8 s</output></label>
+            <label>Min commercial length <output id="minCommercialOut">8 s</output></label>
             <input id="minCommercial" type="range" min="2" max="30" step="1" value="8" />
-            <small>Ignores gaps shorter than this. Raise it on a noisy tape that splits into fragments; lower it if short spots are being swallowed.</small>
+            <small>Shorter clips stay in the list, marked skip for review. Lower this to include short spots in the initial commercial guess.</small>
           </div>
           <div class="field">
             <label>Max commercial length <output id="maxCommercialOut">6.0 min</output></label>
             <input id="maxCommercial" type="range" min="30" max="600" step="10" value="360" />
-            <small>Clips shorter than this are saved as commercials; longer blocks are skipped as the show.</small>
+            <small>Clips from the minimum up to this length are guessed to be commercials. Everything else stays in the list, marked skip.</small>
           </div>
           <button id="detectBtn" class="btn btn-accent full" disabled>Detect commercials</button>
           <div id="detectStats" class="stats"></div>
@@ -192,8 +194,8 @@
             <summary>Missing commercials, or grabbing too much?</summary>
             <ul>
               <li><b>Commercials missed:</b> raise <b>Black sensitivity</b> (some tapes fade to dark gray, not pure black) and/or <b>Silence threshold</b>. Use <b>Test here</b> on a known break to check.</li>
-              <li><b>A commercial got skipped (or show got saved):</b> adjust <b>Max commercial length</b> — clips shorter than it are saved as ads. Or flip any clip with <b>K</b>.</li>
-              <li><b>Grabbing chunks of the show:</b> lower <b>Black sensitivity</b> and raise <b>Min commercial gap</b>.</li>
+              <li><b>A commercial got skipped (or show got saved):</b> adjust <b>Min commercial length</b> and <b>Max commercial length</b> — clips within that range are guessed to be ads. Or flip any clip with <b>K</b>.</li>
+              <li><b>Grabbing chunks of the show:</b> lower <b>Black sensitivity</b> and raise <b>Min commercial length</b>.</li>
               <li><b>Station never fades to black:</b> detection can’t see those — mark commercials by hand with <b>S</b> (split), then flip with <b>K</b>.</li>
             </ul>
           </details>
@@ -288,7 +290,7 @@
             <span class="info" tabindex="0" data-help="Render your result. Choose whether you want the commercials you saved or the show you skipped, then whether they come out as one merged file or separate clips. Export always uses the full-quality source.">i</span>
           </div>
           <div class="field">
-            <label>What to export <span class="info" tabindex="0" data-help="Commercials = the clips you saved (green) — the ads themselves. The show = everything you skipped (red).">i</span></label>
+            <label>What to export <span class="info" tabindex="0" data-help="Commercials = the clips you saved (green) — the ads themselves. The show = everything you skipped (gray).">i</span></label>
             <select id="exportTarget">
               <option value="save">Commercials — the clips I saved</option>
               <option value="skip">The show — everything I skipped</option>
@@ -337,14 +339,14 @@
     </aside>
 
     <!-- Segment list -->
-    <section class="segments">
+    <section class="segments" tabindex="0" aria-label="Clip editing area">
       <div id="rowResizer" class="row-resizer" title="Drag to resize the segment list"></div>
       <div class="segments-head">
         <span id="segCount">Segments</span>
         <div class="seg-actions">
           <div class="seg-edit">
-            <button id="undoBtn" class="btn btn-small" title="Undo the last edit (Ctrl+Z)" disabled>↶ Undo</button>
-            <button id="redoBtn" class="btn btn-small" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+            <button id="undoBtn" class="btn btn-small" title="Undo the last edit (Ctrl+Z)" disabled>Undo</button>
+            <button id="redoBtn" class="btn btn-small" title="Redo (Ctrl+Y)" disabled>Redo</button>
             <button id="splitBtn" class="btn btn-small" title="Split selected clip at the playhead (S)">Split</button>
             <button id="mergePrevBtn" class="btn btn-small" title="Merge selected into previous clip (M)">Merge ◀</button>
             <button id="mergeNextBtn" class="btn btn-small" title="Merge selected into next clip (Shift+M)">Merge ▶</button>
@@ -358,7 +360,7 @@
         </div>
       </div>
       <div id="segmentList" class="segment-list">
-        <div class="empty-note">Load a capture and run detection to see segments.</div>
+        <div class="empty-note">Open a tape to cut manually or run detection.</div>
       </div>
       <div class="kbd-hint" id="kbdHint"></div>
     </section>
@@ -367,6 +369,7 @@
   <!-- Progress overlay -->
   <div id="overlay" class="overlay hidden">
     <div class="overlay-card">
+      <div class="overlay-strip">Processing tape</div>
       <div id="overlayTitle" class="overlay-title">Working…</div>
       <div class="bar"><div id="overlayBar" class="bar-fill"></div></div>
       <div id="overlayStatus" class="overlay-status"></div>
@@ -382,7 +385,7 @@
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <div id="tooltip" class="tooltip hidden"></div>
 
@@ -390,7 +393,7 @@
   <div id="settingsModal" class="help-modal hidden">
     <div class="help-card settings-card">
       <div class="help-head">
-        <div class="help-title">⚙ Settings</div>
+        <div class="help-title">Settings</div>
         <button id="settingsClose" class="help-close" title="Close">✕</button>
       </div>
       <div class="help-body">
@@ -463,11 +466,16 @@
         <h3>Quick start</h3>
         <ol>
           <li><b>Open a file</b> — click <em>Open file…</em> (top-right) or drag a video onto the player. A small preview builds in the background so scrubbing is fast — watch the badge at the top-left of the video. Detection scans that preview because it's far quicker and finds the same breaks; export always uses your full-quality original.</li>
-          <li><b>Detect commercials</b> — click <em>Detect commercials</em>. It scans for fade-to-black + audio silence (the marks between show and ads) and splits the tape into clips, with the ads defaulting to <b>save</b>.</li>
-          <li><b>Review</b> — clips appear on the timeline and in the list, colored <span class="k">green = save</span> / <span class="c">red = skip</span>. Click one to play it, and fix any mistakes (see <em>Editing</em>).</li>
+          <li><b>Detect commercials</b> — click <em>Detect commercials</em>. It splits the tape at black-frame intervals. Silence adds confidence; clip length determines the initial <b>save</b> or <b>skip</b> guess. Review those guesses before exporting.</li>
+          <li><b>Review</b> — clips appear on the timeline and in the list, colored <span class="k">green = save</span> / <span class="c">gray = skip</span>. Click one to play it, and fix any mistakes (see <em>Editing</em>).</li>
           <li><b>Choose what to export</b> — in Export, pick <em>Commercials</em> or <em>The show</em>, then <em>One merged file</em> or <em>Separate clips</em>.</li>
           <li><b>Export</b> — choose an output folder if you like, then <em>Export</em>. Files save next to your source by default.</li>
         </ol>
+
+        <h3>Keep your editing session</h3>
+        <p>Cuts and export settings are saved automatically on this computer. Reopen the same, unchanged video file to resume. <b>Save edits</b> saves explicitly and retries a failed save. If saving fails, opening another tape is blocked; closing asks whether to discard the unsaved changes.</p>
+        <p>A new tape starts as one skipped clip, ready for manual cutting. Running detection again asks before replacing edits, and <b>Undo</b> restores the previous cut list. Undo history lasts until you load another session.</p>
+        <p>Editing shortcuts work when the video or clip editing area has focus. Use <kbd>[</kbd> and <kbd>]</kbd> for the previous and next clip; <kbd>Tab</kbd> moves between controls. Form controls keep their normal keyboard behavior. Cutting from an effects sample returns to the matching position in the source.</p>
 
         <h3>The two jobs</h3>
         <ul>
@@ -479,7 +487,7 @@
         <p>Detection gets you most of the way; fine-tune the rest:</p>
         <ul>
           <li><b>Click</b> a clip to select and preview it. Click its save/skip tag (or press <kbd>K</kbd>) to flip it.</li>
-          <li><b>Drag</b> the yellow boundary handles on the timeline to move where a clip starts/ends.</li>
+          <li><b>Drag</b> the white boundary handles on the timeline to move where a clip starts/ends.</li>
           <li><kbd>S</kbd> <b>split</b> the selected clip at the playhead · <kbd>M</kbd> / <kbd>Shift</kbd>+<kbd>M</kbd> <b>merge</b> with the previous/next clip.</li>
           <li><kbd>I</kbd> / <kbd>O</kbd> snap the selected clip's <b>in / out</b> point to the playhead.</li>
         </ul>
@@ -487,11 +495,11 @@
         <h3>Detect settings</h3>
         <ul>
           <li><b>Black sensitivity</b> — how dark a frame must be to count as a break. Raise it if breaks are missed.</li>
-          <li><b>Silence threshold</b> — how quiet the audio must drop at a break.</li>
-          <li><b>Min commercial gap</b> — ignores tiny gaps (noise).</li>
-          <li><b>Max commercial length</b> — clips shorter than this are guessed to be commercials.</li>
+          <li><b>Silence threshold</b> — how quiet audio must be to support a break’s confidence. It does not change the cuts.</li>
+          <li><b>Min commercial length</b> — shorter clips are marked skip, but remain available to review and save.</li>
+          <li><b>Max commercial length</b> — clips between the minimum and this limit are guessed to be commercials. With no breaks, the whole recording is skipped regardless of length.</li>
         </ul>
-        <p><b>Tune without scanning the whole tape:</b> scrub to a spot you know has a commercial break, then use <em>Test here</em> (under the Detect button) to scan just a short sample. Candidate breaks show as cyan marks on the timeline. Adjust the sliders and re-test until it catches the break, then run full detection. If breaks are still missed, raise <b>Black sensitivity</b> / <b>Silence threshold</b>; if it over-cuts, lower them and raise <b>Min commercial gap</b>. Stations that never fade to black can't be detected — add those cuts by hand with <kbd>S</kbd>.</p>
+        <p><b>Tune without scanning the whole tape:</b> scrub to a spot you know has a commercial break, then use <em>Test here</em> (under the Detect button) to scan just a short sample. Candidate breaks show as gray and white marks on the timeline. Adjust the sliders and re-test until it catches the break, then run full detection. If breaks are missed, raise <b>Black sensitivity</b>; if it over-cuts, lower it. Use the length limits to adjust which clips are initially marked save. Silence affects confidence only. Stations that never fade to black can't be detected — add those cuts by hand with <kbd>S</kbd>.</p>
 
         <h3>Restore (optional)</h3>
         <p>Three groups, applied in the order they appear: <b>Repair</b> undoes damage, <b>Picture</b> improves what's left, <b>Sound</b> fixes the audio. All of it runs at export time against your full-quality original, never the preview copy.</p>

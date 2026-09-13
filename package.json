@@ -1,12 +1,13 @@
 {
   "name": "vhs-editor",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "productName": "VHS Commercial Cutter",
   "description": "Find the commercials in digitized VHS tapes and save them as clips, or keep the show with the ads removed.",
   "main": "main.js",
   "author": "90sCraig",
   "license": "MIT",
   "scripts": {
+    "test": "node --test tests/*.test.js",
     "start": "electron .",
     "setup-ffmpeg": "node scripts/setup-ffmpeg.js",
     "pack": "electron-builder --dir",
@@ -50,7 +51,7 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,

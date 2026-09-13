@@ -203,16 +203,16 @@ function freeBytes(dir) {
 
 // Rough estimate of the space an export will occupy. Re-encoding a capture at
 // the default quality lands near the source's own bitrate, so scale the source
-// bytes-per-second by the exported duration. Merged mode stages every segment
-// beside the finished file, so it needs room for both at once.
+// bytes-per-second by the exported duration plus staging space. Split mode
+// stages one clip at a time; merged mode needs room for a second full copy.
 // Returns 0 when the source can't be measured — callers skip the check.
-async function estimateBytes(input, exportSeconds, mode) {
+async function estimateBytes(input, exportSeconds, stagingSeconds) {
   try {
     const info = await ffprobeInfo(input);
     const size = fs.statSync(input).size;
     if (!info.duration || !size || !exportSeconds) return 0;
-    const bytes = (size / info.duration) * exportSeconds;
-    return Math.round(bytes * (mode === 'split' ? 1.1 : 2.15));
+    const bytes = (size / info.duration) * (exportSeconds + stagingSeconds);
+    return Math.round(bytes * 1.075);
   } catch (_) {
     return 0;
   }
@@ -238,6 +238,20 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
   // Naming: saved commercials vs the skipped show, split vs merged.
   const splitTag = target === 'skip' ? 'show' : 'clip';
   const mergedTag = target === 'skip' ? 'show' : 'commercials';
+  const destinations = mode === 'split'
+    ? chosen.map((_, i) => path.join(outputDir, `${baseName}_${splitTag}${pad(i + 1)}.mp4`))
+    : [path.join(outputDir, `${baseName}_${mergedTag}.mp4`)];
+  // Refuse every collision before rendering, including the source itself,
+  // symlinks and hard links. Never send a user's existing file to FFmpeg -y.
+  for (const destination of destinations) {
+    try {
+      fs.lstatSync(destination);
+    } catch (e) {
+      if (e.code === 'ENOENT') continue;
+      throw e;
+    }
+    throw new Error(`File already exists: ${destination}. Choose a different export name or folder.`);
+  }
 
   const totalDuration = chosen.reduce((sum, s) => sum + (s.end - s.start), 0);
   let doneDuration = 0;
@@ -248,7 +262,9 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
   // whole machine down, not just this export.
   fs.mkdirSync(outputDir, { recursive: true });
   hooks.onStatus && hooks.onStatus('Checking free space…');
-  const needBytes = await estimateBytes(input, totalDuration, mode);
+  const stagingSeconds = mode === 'split'
+    ? Math.max(...chosen.map((s) => s.end - s.start)) : totalDuration;
+  const needBytes = await estimateBytes(input, totalDuration, stagingSeconds);
   const free = freeBytes(outputDir);
   if (needBytes && free && free < needBytes) {
     throw new Error(
@@ -263,8 +279,7 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
   // Staged segments live beside the output rather than in the system temp
   // folder. Temp is on C:, so a large merged export could fill the Windows
   // drive even when the output was pointed at a roomier disk.
-  const work = path.join(outputDir, `.vhs-export-${Date.now()}`);
-  fs.mkdirSync(work, { recursive: true });
+  const work = fs.mkdtempSync(path.join(outputDir, '.vhs-export-'));
   const outputs = [];
 
   try {
@@ -272,12 +287,15 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
       let i = 0;
       for (const s of chosen) {
         i += 1;
-        const out = path.join(outputDir, `${baseName}_${splitTag}${pad(i)}.mp4`);
+        const out = destinations[i - 1];
+        const staged = path.join(work, `clip${pad(i)}.mp4`);
         const dur = s.end - s.start;
         hooks.onStatus && hooks.onStatus(`Exporting clip ${i} of ${chosen.length}…`);
-        if (await encodeWithFallback(input, s.start, dur, out, active, (secs) => {
+        if (await encodeWithFallback(input, s.start, dur, staged, active, (secs) => {
           hooks.onProgress && hooks.onProgress(Math.min(1, (doneDuration + secs) / totalDuration));
         }, hooks)) { active = { ...active, encoder: 'cpu' }; fellBackToCpu = true; }
+        await fs.promises.copyFile(staged, out, fs.constants.COPYFILE_EXCL);
+        fs.unlinkSync(staged);
         doneDuration += dur;
         report();
         outputs.push(out);
@@ -297,9 +315,13 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
         report();
         parts.push(part);
       }
-      const out = path.join(outputDir, `${baseName}_${mergedTag}.mp4`);
+      const out = destinations[0];
+      const staged = path.join(work, 'joined.mp4');
       hooks.onStatus && hooks.onStatus('Joining segments…');
-      await concatParts(parts, out, work);
+      await concatParts(parts, staged, work);
+      for (const part of parts) fs.unlinkSync(part);
+      // Exclusive creation also protects files created during a long export.
+      await fs.promises.copyFile(staged, out, fs.constants.COPYFILE_EXCL);
       outputs.push(out);
     }
   } finally {

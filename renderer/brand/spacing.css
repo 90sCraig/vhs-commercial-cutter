@@ -1,0 +1,14 @@
+:root{
+/* Spacing scale */
+--s-1:4px;--s-2:5px;--s-3:7px;--s-4:9px;--s-5:11px;--s-6:13px;--s-7:14px;--s-8:16px;--s-9:18px;--s-10:22px;--s-11:26px;--s-12:30px;--s-13:34px;--s-14:38px;
+--gap-panel-stack:22px;--gap-rack-module:14px;--gap-chip:7px;
+/* Radii */
+--r-panel:5px;--r-key:4px;--r-input:3px;--r-label:2px;
+--r-led:50%; /* @kind radius */
+/* Layout */
+--container:1240px;--gutter:22px;--rack:316px;--header-h:62px;--sticky-top:82px;
+--strip-pad-y:8px;
+--thumb-grid-w:62px;--thumb-grid-h:84px;--thumb-list-w:68px;--thumb-list-h:92px;
+/* Breakpoints */
+--bp-featured:760px;--bp-rack:1000px;--bp-readouts:1080px;--bp-hero:1180px;
+}

@@ -21,3 +21,14 @@ binaries as separate processes and passes them arguments.
 
 ## Electron
 Built on **Electron** (MIT) and Chromium/Node.js. See https://electronjs.org.
+
+## Brand fonts
+The interface bundles unmodified Latin webfont subsets distributed by Google Fonts:
+
+- Archivo and Archivo Narrow (Omnibus-Type): SIL Open Font License 1.1.
+- IBM Plex Mono (IBM): SIL Open Font License 1.1.
+- Permanent Marker (Font Diner): Apache License 2.0.
+
+Font binaries and the complete license texts are in `renderer/brand/fonts/`.
+They load locally; the application does not contact Google Fonts at runtime.
+Source: https://fonts.google.com/ and https://github.com/google/fonts.

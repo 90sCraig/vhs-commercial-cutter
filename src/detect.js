@@ -11,7 +11,7 @@
 // a two-hour test capture produced 10 black events against 1018 silences.
 //
 // The boundaries split the recording into content segments. We then classify
-// each segment as "keep" (program) or "cut" (commercial) using a length
+// each segment as "keep" (commercial) or "skip" (program) using a length
 // heuristic, and hand the whole thing to the UI for review.
 
 const { runFfmpeg, ffprobeInfo } = require('./ffmpeg');
@@ -22,7 +22,7 @@ const DEFAULTS = {
   silenceDb: -30, // silence threshold in dB (silencedetect n=)
   silenceDuration: 0.30, // min seconds of silence (silencedetect d=)
   coincidenceTol: 1.0, // seconds: how close black & silence must be to "coincide"
-  minCommercialLen: 8, // s: ignore boundary-gaps shorter than this (noise)
+  minCommercialLen: 8, // s: shorter content stays in the list, skipped for review
   maxCommercialLen: 360, // s: a content segment shorter than this is guessed commercial
   // Scene-change rate, measured per segment and reported as cutsPerMin. Ads cut
   // faster than programs, and on a test tape the gap was real (26.8/min across a
@@ -105,6 +105,12 @@ function cutRate(scenes, start, end) {
 
 // Turn boundaries into content segments between them.
 function buildSegments(boundaries, duration, opts, scenes) {
+  // With no boundaries there is no evidence to classify a whole recording.
+  if (!boundaries.length) {
+    return duration > 0
+      ? [{ id: 0, start: 0, end: duration, duration, keep: false, confidentBoundary: false }]
+      : [];
+  }
   const segs = [];
   let cursor = 0;
   let id = 0;
@@ -114,17 +120,16 @@ function buildSegments(boundaries, duration, opts, scenes) {
   let openedConfident = true;
   const pushSeg = (start, end) => {
     const len = end - start;
-    if (len < opts.minCommercialLen) return; // skip micro-gaps (noise)
+    if (len <= 0) return; // never create empty clips
     const rate = cutRate(scenes, start, end);
     segs.push({
       id: id++,
       start,
       end,
       duration: len,
-      // Goal is collecting commercials: short blocks between fades are almost
-      // always ads, so they default to SAVE; long program blocks default to SKIP.
-      // (`keep` = "included in the export".)
-      keep: len < opts.maxCommercialLen,
+      // Duration is a guess, not recognition. Preserve short content for manual
+      // review instead of removing it from both export targets.
+      keep: len >= opts.minCommercialLen && len < opts.maxCommercialLen,
       cutsPerMin: rate == null ? null : Math.round(rate * 10) / 10,
       confidentBoundary: openedConfident,
     });
@@ -231,8 +236,6 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
   };
 }
 
-// Sample detection: scan only a [start, start+duration] window so you can
-// tune thresholds against a known commercial break without processing the
 // Threshold ladder for calibration.
 //
 // There is no universally right black threshold: two tapes from the same
@@ -249,8 +252,13 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
 const CALIBRATION_LADDER = [0.06, 0.10, 0.16, 0.22, 0.30];
 
 function pickThreshold(rungs, floor = 0.7, minAdded = 5) {
-  let best = rungs[0];
-  let anchor = rungs[0]; // last rung there was enough evidence to judge against
+  if (!rungs.length) return null;
+  // Even the lowest rung needs evidence. A handful of events higher up must
+  // not silently select a lower threshold that found nothing.
+  const first = rungs[0];
+  let best = first.blackEvents >= minAdded && first.coinciding / first.blackEvents >= floor
+    ? first : null;
+  let anchor = first; // last rung there was enough evidence to judge against
   for (let i = 1; i < rungs.length; i++) {
     const addedEvents = rungs[i].blackEvents - anchor.blackEvents;
     const addedSilent = rungs[i].coinciding - anchor.coinciding;
@@ -275,7 +283,10 @@ async function calibrate(filePath, userOpts = {}, hooks = {}) {
 
   // A quarter of the way in: heads and tails are often blank or mid-programme,
   // and a window containing no breaks calibrates nothing.
-  const window = Math.min(opts.calibrateWindow, Math.max(60, duration / 2));
+  if (duration <= 0) {
+    return { threshold: opts.blackThreshold, rungs: [], range: { start: 0, duration: 0 }, inconclusive: true };
+  }
+  const window = Math.min(duration, opts.calibrateWindow, Math.max(60, duration / 2));
   const range = { start: Math.max(0, Math.min(duration * 0.25, duration - window)), duration: window };
 
   const rungs = [];
@@ -296,49 +307,25 @@ async function calibrate(filePath, userOpts = {}, hooks = {}) {
 
   const best = pickThreshold(rungs);
   return {
-    threshold: best.threshold,
+    threshold: best ? best.threshold : opts.blackThreshold,
     rungs,
     range,
-    // Nothing found even at the top of the ladder: this stretch of tape has no
-    // breaks in it. Better to say so than to hand back a number backed by
-    // nothing.
-    inconclusive: rungs[rungs.length - 1].blackEvents < 3,
+    // Insufficient evidence leaves the user's threshold unchanged.
+    inconclusive: !best,
   };
 }
 
-// whole tape. Returns boundaries at ABSOLUTE timeline positions.
+// Sample detection uses the full scan pipeline, including torn-frame repair.
+// Return absolute timeline positions, clamped to the available recording.
 async function detectSample(filePath, userOpts = {}, range = {}, hooks = {}) {
   const opts = { ...DEFAULTS, ...userOpts };
-  const start = Math.max(0, range.start || 0);
-  const dur = Math.max(1, range.duration || 120);
-  const black = [];
-  const silence = [];
-  const vf = `blackdetect=d=${opts.blackDuration}:pix_th=${opts.blackThreshold}`;
-  const af = `silencedetect=n=${opts.silenceDb}dB:d=${opts.silenceDuration}`;
-  const NUL = process.platform === 'win32' ? 'NUL' : '/dev/null';
-
-  const runPass = (hwaccel) => {
-    black.length = 0; silence.length = 0;
-    const args = ['-hide_banner'];
-    if (hwaccel) args.push('-hwaccel', hwaccel);
-    // -ss before -i = fast seek; timestamps come back relative to the slice.
-    args.push('-ss', String(start), '-i', filePath, '-t', String(dur),
-      '-vf', vf, '-af', af, '-f', 'null', NUL);
-    return runFfmpeg(args, {
-      onLine: (line) => parseEvents(line, black, silence),
-      onProgress: (secs) => { if (hooks.onProgress) hooks.onProgress(Math.min(1, secs / dur)); },
-    });
-  };
-
-  try {
-    await runPass(opts.hwaccel || null);
-  } catch (e) {
-    if (opts.hwaccel) { await runPass(null); } else throw e;
-  }
-
-  // Shift slice-relative timestamps back to absolute timeline positions.
-  for (const b of black) { b.start += start; if (b.end != null) b.end += start; }
-  for (const s of silence) { s.start += start; if (s.end != null) s.end += start; }
+  const info = await ffprobeInfo(filePath);
+  const available = Math.max(0, info.duration || 0);
+  const start = Math.min(available, Math.max(0, range.start || 0));
+  const dur = Math.min(available - start, Math.max(1, range.duration || 120));
+  const { black, silence } = dur > 0
+    ? await scanEvents(filePath, opts, dur, hooks, { start, duration: dur })
+    : { black: [], silence: [] };
 
   const boundaries = buildBoundaries(black, silence, opts);
   return {
