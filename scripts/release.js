@@ -1,6 +1,9 @@
 // One-command release: (optionally bump version) → build → create the GitHub
 // release with the installer, portable, blockmap, and latest.yml.
 //
+// The test suite runs first; a failure stops the release before anything is
+// bumped, built or published.
+//
 //   npm run release            # release the current package.json version
 //   npm run release -- patch   # bump patch first (0.1.0 → 0.1.1), then release
 //   npm run release -- minor   # 0.1.0 → 0.2.0
@@ -33,6 +36,15 @@ function findGh() {
 }
 
 const gh = findGh();
+
+// Tests first, and before the version bump rather than after. A failure here
+// has to leave the tree exactly as it found it: bumping first means a red test
+// aborts with package.json already edited, and the next run either releases a
+// version nobody reviewed or needs the bump backed out by hand. Releases
+// publish straight to users through auto-update, so this is the last place
+// anything gets checked.
+console.log('\n▶ Running tests\n');
+run('npm', ['test'], true);
 
 // Optional version bump.
 const bump = process.argv[2];

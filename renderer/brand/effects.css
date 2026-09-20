@@ -1,17 +1,23 @@
+/* Shadows, bevels and glows, all derived.
+   --shadow and --hilite say what the light in this theme is made of, the --a-*
+   scalars in colors.css say how strong, and the accent glows mix the theme's
+   own accent. A theme in themes.css overrides the palette and never restates a
+   shadow recipe, so adding a palette cannot leave the chrome behind. */
 :root{
---sh-panel:inset 0 1px 0 rgba(255,255,255,.05),0 10px 30px rgba(0,0,0,.4); /* @kind shadow */
---sh-inset:inset 0 2px 5px rgba(0,0,0,.6); /* @kind shadow */
---sh-key:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -2px 3px rgba(0,0,0,.45),0 2px 0 #0a0c0b,0 3px 5px rgba(0,0,0,.55); /* @kind shadow */
---sh-key-down:inset 0 2px 5px rgba(0,0,0,.7); /* @kind shadow */
---sh-key-active:inset 0 2px 4px rgba(0,0,0,.7),inset 0 -1px 0 rgba(78,232,138,.22),0 0 10px rgba(78,232,138,.14); /* @kind shadow */
---sh-primary:inset 0 1px 0 rgba(255,255,255,.4),0 3px 0 #1f7a45; /* @kind shadow */
---sh-lit:0 0 26px rgba(78,232,138,.09); /* @kind shadow */
---sh-label:0 4px 14px rgba(0,0,0,.5); /* @kind shadow */
---key-face:linear-gradient(#2c322e,#1b1f1d); /* @kind other */
---key-face-active:linear-gradient(#0e1f16,#123024); /* @kind other */
---glow-wordmark:0 0 12px rgba(78,232,138,.45); /* @kind shadow */
---glow-key-active:0 0 10px rgba(78,232,138,.55); /* @kind shadow */
---glow-readout:0 0 14px rgba(78,232,138,.3); /* @kind shadow */
+--sh-panel:inset 0 1px 0 color-mix(in srgb,var(--hilite) var(--a-hilite),transparent),0 10px 30px color-mix(in srgb,var(--shadow) var(--a-drop),transparent); /* @kind shadow */
+--sh-inset:inset 0 2px 5px color-mix(in srgb,var(--shadow) var(--a-well),transparent); /* @kind shadow */
+--sh-key:inset 0 1px 0 color-mix(in srgb,var(--hilite) var(--a-key-top),transparent),inset 0 -2px 3px color-mix(in srgb,var(--shadow) var(--a-key-bot),transparent),0 2px 0 var(--key-edge),0 3px 5px color-mix(in srgb,var(--shadow) var(--a-key-drop),transparent); /* @kind shadow */
+--sh-key-down:inset 0 2px 5px color-mix(in srgb,var(--shadow) var(--a-key-down),transparent); /* @kind shadow */
+--sh-key-active:inset 0 2px 4px color-mix(in srgb,var(--shadow) var(--a-key-down),transparent),inset 0 -1px 0 color-mix(in srgb,var(--green) 22%,transparent),0 0 10px color-mix(in srgb,var(--green) 14%,transparent); /* @kind shadow */
+--sh-primary:inset 0 1px 0 color-mix(in srgb,var(--hilite) var(--a-primary-top),transparent),0 3px 0 var(--green-shadow); /* @kind shadow */
+--sh-lit:0 0 26px color-mix(in srgb,var(--green) 9%,transparent); /* @kind shadow */
+--sh-label:0 4px 14px color-mix(in srgb,var(--shadow) var(--a-label),transparent); /* @kind shadow */
+--key-face:linear-gradient(color-mix(in srgb,var(--hilite) var(--key-lift-1),var(--panel)),color-mix(in srgb,var(--hilite) var(--key-lift-2),var(--panel))); /* @kind other */
+--key-face-active:linear-gradient(color-mix(in srgb,var(--shadow) 12%,var(--green-bg)),color-mix(in srgb,var(--green) 6%,var(--green-bg))); /* @kind other */
+--glow-wordmark:0 0 12px color-mix(in srgb,var(--green) 45%,transparent); /* @kind shadow */
+--glow-key-active:0 0 10px color-mix(in srgb,var(--green) 55%,transparent); /* @kind shadow */
+--glow-readout:0 0 14px color-mix(in srgb,var(--green) 30%,transparent); /* @kind shadow */
+--overlay-scrim:color-mix(in srgb,var(--shadow) var(--a-overlay),transparent); /* @kind other */
 }
 @keyframes rec{0%,49%{opacity:1}50%,100%{opacity:.15}}
 @keyframes led{0%,100%{opacity:.55}50%{opacity:1}}

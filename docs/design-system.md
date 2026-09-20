@@ -24,10 +24,34 @@ in that package are not application features or production data.
 - The source React examples were translated into the existing HTML/CSS interface;
   the supplied scripts and bundles are not loaded by the app.
 
+## Theming
+
+The tokens above are the default palette, not the only one. `renderer/brand/themes.css`
+adds fifteen further palettes as `:root[data-theme="..."]` blocks, each overriding the
+surfaces, accent, lines, ink ladder and signal colors and nothing else. Shadows, bevels,
+key faces and glows live in `effects.css` and are derived from those tokens with
+`color-mix()`, so a palette never restates a shadow recipe and cannot leave the chrome
+behind on green.
+
+The rules above still hold inside a theme. The accent identifies controls, readouts and
+saved clips; skipped clips stay neutral; white marks edit handles; cream stays reserved
+for the source tape label and is the one family a theme does not override, because it
+means physical label stock rather than a color choice. Surfaces stay flat, inputs stay
+recessed, keys still travel 2px.
+
+Ink tiers are solved per theme rather than copied, because the upstream palettes were
+not authored against this ladder. Each tier is a share of the contrast that theme can
+actually reach on its own panel, floored so that `--muted` and `--muted-2` — body prose
+and the lowest tier the system allows for a sentence — stay at AA for normal text. The
+accent is nudged toward the theme's pole where it misses 4.5:1 as text, and `--on-accent`
+picks black or white for the primary button's label. `tests/themes.test.js` enforces all
+of it against the committed CSS.
+
 ## Visual checks
 
 Review the empty editor, a loaded timeline, Settings, Guide, export controls and
-progress dialog at 1280×820 and 900×640. Also check a narrow stacked layout,
+progress dialog at 1280×820 and 900×640, in the default theme and in at least one
+light theme. Also check a narrow stacked layout,
 keyboard focus, help text on/off and resizing the segment list.
 Screenshots under `docs/screenshots/brand-*.png` show the integrated renderer.
 

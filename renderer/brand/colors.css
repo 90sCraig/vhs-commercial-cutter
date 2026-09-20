@@ -1,4 +1,5 @@
 :root{
+color-scheme:dark;
 /* Surfaces — two greys only, plus recessed wells */
 --bg:#0d0f0e;--panel:#161918;--panel-strip:#0f1211;--panel-hover:#191d1b;--inset:#0a0c0b;--inset-deep:#070908;
 /* Phosphor — the only accent hue */
@@ -20,6 +21,15 @@
 --cream:#e9e3d0;--cream-ink:#22201a;--cream-label:#7a7566;--cream-rule:#b3ad9a;--cream-rule-2:#c9c3b0;
 /* Signal */
 --amber-bright:#ffc266;--amber:#ffa32e;--rec-red:#ff3b30;
+/* Chrome derivation — effects.css builds every shadow, bevel and glow from
+these. A theme overrides the palette above and inherits all of it. */
+--shadow:#000000;--hilite:#ffffff;
+--a-hilite:5%;--a-drop:40%;--a-well:60%;--a-key-top:16%;--a-key-bot:45%;
+--a-key-drop:55%;--a-key-down:70%;--a-primary-top:40%;--a-label:50%;--a-overlay:94%;
+--key-lift-1:9%;--key-lift-2:2%;
+/* Text that sits on an accent fill. Themes compute black or white; the
+default keeps the near-black the phosphor button has always used. */
+--on-accent:var(--inset-deep);
 /* Semantic aliases */
 --surface-page:var(--bg);--surface-panel:var(--panel);--surface-strip:var(--panel-strip);--surface-well:var(--inset);
 --text-body:var(--muted);--text-title:var(--ink);--text-label:var(--label);--text-readout:var(--green);

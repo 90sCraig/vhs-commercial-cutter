@@ -1,5 +1,4 @@
 // Persistent app settings, stored as JSON in the user-data folder.
-const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -20,6 +19,13 @@ const DEFAULTS = {
   // the "i" tooltips and the Guide still explain everything either way.
   showHelpText: false,
   keymap: 'default', // 'default' | 'videoredo'
+  // Appearance. `theme` is a theme id from renderer/brand/themes.json, or
+  // 'auto' to follow the OS light/dark setting, in which case themeLight and
+  // themeDark say which palette each side of that switch uses. The default
+  // stays WCRG-TV: the app's own look is the one people already installed.
+  theme: 'wcrg',
+  themeLight: 'github-light',
+  themeDark: 'wcrg',
   // Height in px of the segment list, dragged against the player. Remembered
   // because how much of it you want depends on the tape: eighty segments needs
   // a lot more list than eight.
@@ -36,6 +42,10 @@ const DEFAULTS = {
 };
 
 function file() {
+  // Required here rather than at the top so the defaults can be read outside
+  // an Electron process — the theme tests check that the shipped defaults name
+  // palettes that actually exist.
+  const { app } = require('electron');
   return path.join(app.getPath('userData'), 'settings.json');
 }
 

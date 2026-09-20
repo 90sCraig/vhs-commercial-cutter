@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, powerSaveBlocker, nativeTheme } = require('electron');
 const path = require('path');
 const { ffprobeInfo, FFMPEG, FFPROBE, withJob, cancelJob } = require('./src/ffmpeg');
 const { detect, detectSample, calibrate } = require('./src/detect');
@@ -9,6 +9,7 @@ const cutpoints = require('./src/cutpoints');
 const { scanTears } = require('./src/tears');
 const fs = require('fs');
 const settings = require('./src/settings');
+const theme = require('./src/theme');
 const sessions = require('./src/sessions');
 const updater = require('./src/updater');
 const { spawn } = require('child_process');
@@ -33,7 +34,10 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 640,
-    backgroundColor: '#0d0f0e',
+    // Wear the saved theme's page color from the first frame. Creating the
+    // window dark and letting the stylesheet repaint it is a visible white-to-
+    // dark or dark-to-white flash on every launch for anyone not on WCRG-TV.
+    backgroundColor: theme.background(theme.resolve(settings.load(), nativeTheme.shouldUseDarkColors)),
     title: 'VHS Commercial Cutter',
     icon: path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     webPreferences: {
@@ -247,7 +251,26 @@ handleJob('proxy:ensure', async (_e, { filePath, duration }) => {
 
 // --- settings + cache + encoder ---
 ipcMain.handle('settings:get', () => settings.load());
-ipcMain.handle('settings:set', (_e, partial) => settings.save(partial));
+ipcMain.handle('settings:set', (_e, partial) => {
+  const merged = settings.save(partial);
+  // Keep the native window background in step with the theme, so a resize or
+  // a maximize never exposes the previous theme's color at the edges.
+  if (win && !win.isDestroyed()) {
+    try {
+      win.setBackgroundColor(theme.background(theme.resolve(merged, nativeTheme.shouldUseDarkColors)));
+    } catch (_) { /* window background is cosmetic; never fail a settings write on it */ }
+  }
+  return merged;
+});
+// Synchronous because the renderer reads these in a head script, before the
+// first paint, to apply the saved theme without a flash of the default one.
+// They also live here rather than in preload because a sandboxed preload
+// cannot require src/theme.js.
+ipcMain.on('settings:getSync', (e) => { e.returnValue = settings.load(); });
+ipcMain.on('theme:listSync', (e) => { e.returnValue = theme.list(); });
+ipcMain.on('theme:resolveSync', (e, { settings: s, systemPrefersDark }) => {
+  e.returnValue = theme.resolve(s, systemPrefersDark);
+});
 ipcMain.handle('proxy:cacheSize', () => cacheSize());
 ipcMain.handle('proxy:clearCache', () => clearCache());
 

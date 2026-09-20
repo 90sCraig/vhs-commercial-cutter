@@ -1,0 +1,98 @@
+[
+  {
+    "id": "wcrg",
+    "label": "WCRG-TV Ch. 90",
+    "mode": "dark",
+    "bg": "#0d0f0e"
+  },
+  {
+    "id": "nord",
+    "label": "Nord",
+    "mode": "dark",
+    "bg": "#2e3440"
+  },
+  {
+    "id": "dracula",
+    "label": "Dracula",
+    "mode": "dark",
+    "bg": "#21222c"
+  },
+  {
+    "id": "tokyo-night",
+    "label": "Tokyo Night",
+    "mode": "dark",
+    "bg": "#1a1b26"
+  },
+  {
+    "id": "one-dark",
+    "label": "One Dark",
+    "mode": "dark",
+    "bg": "#21252b"
+  },
+  {
+    "id": "catppuccin-mocha",
+    "label": "Catppuccin Mocha",
+    "mode": "dark",
+    "bg": "#11111b"
+  },
+  {
+    "id": "gruvbox-dark",
+    "label": "Gruvbox Dark",
+    "mode": "dark",
+    "bg": "#1d2021"
+  },
+  {
+    "id": "monokai",
+    "label": "Monokai",
+    "mode": "dark",
+    "bg": "#1e1f1c"
+  },
+  {
+    "id": "rose-pine",
+    "label": "Rose Pine",
+    "mode": "dark",
+    "bg": "#191724"
+  },
+  {
+    "id": "everforest",
+    "label": "Everforest",
+    "mode": "dark",
+    "bg": "#272e33"
+  },
+  {
+    "id": "solarized-dark",
+    "label": "Solarized Dark",
+    "mode": "dark",
+    "bg": "#002b36"
+  },
+  {
+    "id": "solarized-light",
+    "label": "Solarized Light",
+    "mode": "light",
+    "bg": "#eee8d5"
+  },
+  {
+    "id": "catppuccin-latte",
+    "label": "Catppuccin Latte",
+    "mode": "light",
+    "bg": "#e6e9ef"
+  },
+  {
+    "id": "github-light",
+    "label": "GitHub Light",
+    "mode": "light",
+    "bg": "#f6f8fa"
+  },
+  {
+    "id": "gruvbox-light",
+    "label": "Gruvbox Light",
+    "mode": "light",
+    "bg": "#f2e5bc"
+  },
+  {
+    "id": "rose-pine-dawn",
+    "label": "Rose Pine Dawn",
+    "mode": "light",
+    "bg": "#f2e9e1"
+  }
+]

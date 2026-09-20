@@ -1547,6 +1547,87 @@ function initHelp() {
   } catch (_) { /* localStorage may be unavailable */ }
 }
 
+// ---- theme ------------------------------------------------------------
+// theme-boot.js already applied the saved theme before the first paint. This
+// keeps it in step afterwards: while the picker is open, and when Windows
+// flips light/dark under an 'auto' setting.
+
+// Looked up on first use rather than at load. Loading this file should not
+// reach into the environment, and the query is only needed once the settings
+// exist to resolve against.
+let darkQuery = null;
+function systemDark() {
+  if (!darkQuery) {
+    darkQuery = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)'))
+      || { matches: false, addEventListener() {} };
+  }
+  return darkQuery;
+}
+
+function applyTheme() {
+  const id = window.api.resolveTheme(state.settings, systemDark().matches);
+  document.documentElement.dataset.theme = id;
+  return id;
+}
+
+function fillThemeSelect(el, themes, selected) {
+  const groups = [['dark', 'Dark'], ['light', 'Light']];
+  el.textContent = '';
+  for (const [mode, heading] of groups) {
+    const members = themes.filter((t) => t.mode === mode);
+    if (!members.length) continue;
+    const group = document.createElement('optgroup');
+    group.label = heading;
+    for (const t of members) {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.label;
+      group.appendChild(opt);
+    }
+    el.appendChild(group);
+  }
+  el.value = selected;
+}
+
+function syncAutoFields() {
+  $('autoThemeFields').classList.toggle('hidden', state.settings.theme !== 'auto');
+}
+
+function initTheme() {
+  const themes = window.api.themes();
+
+  fillThemeSelect($('setThemeLight'), themes.filter((t) => t.mode === 'light'), state.settings.themeLight);
+  fillThemeSelect($('setThemeDark'), themes.filter((t) => t.mode === 'dark'), state.settings.themeDark);
+
+  // The main picker carries an extra option the pairing selects do not.
+  fillThemeSelect($('setTheme'), themes, state.settings.theme);
+  const auto = document.createElement('option');
+  auto.value = 'auto';
+  auto.textContent = 'Match system';
+  $('setTheme').insertBefore(auto, $('setTheme').firstChild);
+  $('setTheme').value = state.settings.theme;
+
+  syncAutoFields();
+  applyTheme();
+
+  // Retint immediately, then persist. Writing first would make every change
+  // wait on a disk round-trip before the window showed it.
+  const commit = async (partial) => {
+    Object.assign(state.settings, partial);
+    applyTheme();
+    syncAutoFields();
+    state.settings = await window.api.setSettings(partial);
+  };
+
+  $('setTheme').addEventListener('change', () => commit({ theme: $('setTheme').value }));
+  $('setThemeLight').addEventListener('change', () => commit({ themeLight: $('setThemeLight').value }));
+  $('setThemeDark').addEventListener('change', () => commit({ themeDark: $('setThemeDark').value }));
+
+  // Only moves anything when the setting is 'auto'; resolveTheme ignores the
+  // OS preference otherwise.
+  systemDark().addEventListener('change', applyTheme);
+}
+
 // ---- settings ---------------------------------------------------------
 function fmtCache(bytes) {
   if (!bytes) return '0 MB';
@@ -1564,6 +1645,7 @@ async function refreshCacheSize() {
 
 async function initSettings() {
   state.settings = await window.api.getSettings();
+  initTheme();
   $('setProxyEnabled').checked = state.settings.proxyEnabled;
   $('setDetectOnProxy').checked = state.settings.detectOnProxy !== false;
   $('setExperimental').checked = state.settings.experimental === true;

@@ -3,11 +3,11 @@
 @import url('brand/typography.css');
 @import url('brand/spacing.css');
 @import url('brand/effects.css');
+@import url('brand/themes.css');
 
 /* WCRG-TV Ch. 90. The app uses a flexible monitor beside the 316px rack.
    Brand tokens live in brand/; aliases below preserve the editor vocabulary. */
 :root {
-  color-scheme: dark;
   --bg-2: var(--panel); --bg-3: var(--inset);
   --line-hi: var(--line-mid); --text: var(--ink-2);
   --accent-2: var(--green-dim); --keep: var(--green); --cut: var(--muted-2);
@@ -204,8 +204,8 @@ select { cursor: pointer; }
 .btn:active:not(:disabled), .proxy-abort:active:not(:disabled), .help-close:active { transform: translateY(2px); box-shadow: var(--sh-key-down); }
 .btn:disabled, .proxy-abort:disabled { color: var(--label); background: var(--panel); border-color: var(--line-soft); box-shadow: none; cursor: not-allowed; }
 .btn-small { min-height: 28px; padding: 6px 9px; font-size: 10px; letter-spacing: .04em; }
-.btn-primary { background: var(--green); color: var(--inset-deep); border-color: var(--green-shadow); box-shadow: var(--sh-primary); }
-.btn-primary:hover:not(:disabled) { background: var(--green-bright); color: var(--inset-deep); }
+.btn-primary { background: var(--green); color: var(--on-accent); border-color: var(--green-shadow); box-shadow: var(--sh-primary); }
+.btn-primary:hover:not(:disabled) { background: var(--green-bright); color: var(--on-accent); }
 .btn-accent { color: var(--green); border-color: var(--green-dim); }
 .btn-accent:hover:not(:disabled) { color: var(--green-bright); }
 .proxy-abort { min-height: 24px; padding: 4px 7px; font-size: 10px; }
@@ -236,7 +236,7 @@ select { cursor: pointer; }
 .seg-tag:hover { color: var(--green-bright); border-color: var(--green); }
 
 /* Dialogs and status messages stay flat and legible. */
-.overlay, .help-modal { position: fixed; inset: 0; background: rgba(7,9,8,.94); display: flex; align-items: center; justify-content: center; padding: 22px; }
+.overlay, .help-modal { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; padding: 22px; }
 .overlay { z-index: 50; }
 .overlay-card { width: 420px; max-width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 22px; box-shadow: var(--sh-panel); }
 .overlay-strip { margin: -22px -22px 18px; padding: 9px 22px; background: var(--panel-strip); border-bottom: 1px solid var(--line); font: 600 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--green); }

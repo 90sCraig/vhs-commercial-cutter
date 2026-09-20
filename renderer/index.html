@@ -7,6 +7,7 @@
     content="default-src 'self'; media-src 'self' file:; img-src 'self' data: file:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
   <title>VHS Commercial Cutter</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="theme-boot.js"></script>
 </head>
 <body>
   <!-- Live preview filter chain, driven from renderer.js. Applied to the player
@@ -397,6 +398,24 @@
         <button id="settingsClose" class="help-close" title="Close">✕</button>
       </div>
       <div class="help-body">
+        <h3>Appearance</h3>
+        <p>The default is the app's own WCRG-TV look. The rest are well-known editor palettes, adjusted where needed so small text and readouts stay legible on their own surfaces.</p>
+        <div class="field">
+          <label>Theme</label>
+          <select id="setTheme"></select>
+          <small>Applies as you pick it. <b>Match system</b> follows Windows' light and dark setting and switches with it.</small>
+        </div>
+        <div id="autoThemeFields" class="hidden">
+          <div class="field">
+            <label>When Windows is light</label>
+            <select id="setThemeLight"></select>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label>When Windows is dark</label>
+            <select id="setThemeDark"></select>
+          </div>
+        </div>
+
         <h3>Preview proxy</h3>
         <p>On import, a small low-res copy is built so scrubbing stays fast. Export always uses your full-quality original.</p>
         <label class="switch"><input id="setProxyEnabled" type="checkbox" /> <span>Build preview proxies automatically</span></label>
