@@ -181,6 +181,48 @@ npm run dist  # build installer + portable into dist\
 npm run pack  # unpacked app only (dist\win-unpacked)
 ```
 
+### If the app won't start after installing
+
+Two separate problems can leave you with an Electron that never unpacked. Both
+end at the same misleading error, which sends you to reinstall — and
+reinstalling does not fix either one:
+
+```
+Error: Electron failed to install correctly, please delete node_modules/electron and try installing again
+```
+
+Check what actually happened:
+
+```powershell
+Get-ChildItem node_modules\electron\dist | Measure-Object   # should be 19 items, not 1
+```
+
+**npm 11.17 and later block dependency install scripts by default.** Electron
+unpacks its binary in a postinstall, so a blocked script means `npm install`
+finishes suspiciously fast and leaves `dist\` empty. The approvals are
+committed in this repo's `allowScripts` field, so a fresh clone is covered,
+but they are pinned per version — bumping Electron needs them re-approved:
+
+```powershell
+npm approve-scripts electron ffmpeg-static electron-winstaller
+```
+
+**Node 26 breaks `extract-zip`, which Electron's installer uses.** The
+extraction writes its first entry and then the promise never settles, so Node
+empties its event loop and exits 0 with 1 of 19 files unpacked. Nothing fails
+loudly and `npm install` reports success. Installing under a Node LTS avoids
+it. To repair an install you already have, unpack the cached zip yourself with
+`tar`, which ships with Windows 10 and later and handles zips fine:
+
+```powershell
+$zip = (Get-ChildItem "$env:LOCALAPPDATA\electron\Cache" -Recurse -Filter '*win32-x64.zip' |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+Remove-Item -Recurse -Force node_modules\electron\dist
+New-Item -ItemType Directory node_modules\electron\dist | Out-Null
+tar -xf $zip -C node_modules\electron\dist
+Set-Content node_modules\electron\path.txt 'electron.exe' -NoNewline
+```
+
 ## Releasing an update
 
 The installed app checks GitHub releases on launch and tells the user when a new version is out. Nothing installs without them saying yes. To put one out:
