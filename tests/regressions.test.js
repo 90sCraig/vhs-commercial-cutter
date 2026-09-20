@@ -28,7 +28,12 @@ function renderer() {
     renderPreview: async (payload) => { calls.push(payload); return 'C:/sample.mp4'; },
   };
   const context = vm.createContext({
-    document: { getElementById: get, querySelector: () => get("query") }, window: { api }, Event: class {},
+    document: {
+      getElementById: get, querySelector: () => get("query"),
+      createElement: () => ({ appendChild() {}, insertBefore() {} }),
+      documentElement: { dataset: {} },
+    },
+    window: { api, matchMedia: () => ({ matches: false, addEventListener() {} }) }, Event: class {},
     setTimeout: () => 0, clearTimeout() {},
   });
   const run = (code) => vm.runInContext(code, context);

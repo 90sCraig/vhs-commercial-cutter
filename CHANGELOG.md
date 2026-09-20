@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.1
+
+### Added
+
+- Theme switcher in Settings, with sixteen palettes: the app's own WCRG-TV look plus Nord, Dracula, Tokyo Night, One Dark, Catppuccin Mocha and Latte, Gruvbox Dark and Light, Monokai, Rose Pine and Rose Pine Dawn, Everforest, Solarized Dark and Light, and GitHub Light. Themes apply as you pick them, and **Match system** follows Windows' light/dark setting.
+- Every palette is contrast-checked against its own surfaces. Where an upstream palette puts body text or an accent under WCAG AA on its own panel, the generator corrects it rather than shipping text nobody can read; the tests fail if a tier drops below its floor.
+
+### Changed
+
+- Shadows, bevels, key faces and glows are derived from whichever palette is active instead of being hardcoded to phosphor green, so the physical look of the controls carries into every theme.
+- The default appearance is unchanged. Existing installs stay on WCRG-TV.
+
 ## 0.8.0
 
 ### Added

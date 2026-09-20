@@ -22,6 +22,15 @@ contextBridge.exposeInMainWorld('api', {
   renderPreview: (payload) => ipcRenderer.invoke('preview:render', payload),
   buildProxy: (filePath, duration) => ipcRenderer.invoke('proxy:ensure', { filePath, duration }),
   getSettings: () => ipcRenderer.invoke('settings:get'),
+  // Synchronous on purpose. index.html resolves the theme in a head script to
+  // set the palette before the first paint, and an async round-trip would show
+  // a frame of the wrong one on every launch. These cannot call src/theme.js
+  // directly: preload runs sandboxed, where require is limited to electron and
+  // a few built-ins, so the resolver stays in the main process.
+  settingsSync: () => ipcRenderer.sendSync('settings:getSync'),
+  themes: () => ipcRenderer.sendSync('theme:listSync'),
+  resolveTheme: (settings, systemPrefersDark) =>
+    ipcRenderer.sendSync('theme:resolveSync', { settings, systemPrefersDark }),
   setSettings: (partial) => ipcRenderer.invoke('settings:set', partial),
   cacheSize: () => ipcRenderer.invoke('proxy:cacheSize'),
   clearCache: () => ipcRenderer.invoke('proxy:clearCache'),
