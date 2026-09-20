@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Cutting a long tape no longer gets slower the longer the tape. Selecting a clip and flipping it between save and skip each rebuilt the whole timeline, minimap and segment list — around 470 elements and their event listeners on a 156-segment tape, on every click and every press of `[`, `]` or `K`. Neither action changes the shape of anything, so both now update in place. Measured per selection: 20ms to 0.3ms at 156 segments, 40ms to 0.5ms at 300. Split, merge, undo and invert still redraw fully, because they genuinely change the cuts.
+
 ## 0.8.1
 
 ### Added

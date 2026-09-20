@@ -16,6 +16,7 @@ function renderer() {
       value: '0', checked: false, style: {}, currentTime: 0,
       classList: { add() {}, remove() {}, toggle() {}, contains() { return true; } },
       addEventListener() {}, removeEventListener() {}, pause() {}, focus() {}, dispatchEvent() {},
+      querySelector: () => null, querySelectorAll: () => [],
       play: () => Promise.resolve(),
     });
     return elements.get(id);
@@ -199,3 +200,67 @@ for (const mode of ['merged', 'split']) {
     assert.equal(fs.readdirSync(options.outputDir).some((f) => f.startsWith('.vhs-export-')), false);
   });
 }
+
+// Cutting a tape is thousands of these two actions. Both used to go through a
+// full rebuild of the timeline, minimap and segment list, which made the app
+// slower the longer the tape: about 1.6ms per selection at 8 segments, 20ms at
+// 156, 40ms at 300. Neither changes the shape of anything, so neither may
+// rebuild. Structural edits -- split, merge, undo, invert -- still must.
+test('selecting a clip does not rebuild the timeline or the list', () => {
+  const r = renderer();
+  r.run(`
+    rebuilds = 0;
+    renderTimeline = renderSegmentList = renderMinimap = () => { rebuilds++; };
+    state.duration = 600;
+    state.segments = [
+      { id: 1, start: 0, end: 200, duration: 200, keep: true },
+      { id: 2, start: 200, end: 400, duration: 200, keep: false },
+      { id: 3, start: 400, end: 600, duration: 200, keep: true },
+    ];
+    state.selected = 1;
+    selectSegment(2, {});
+    selectSegment(3, {});
+  `);
+  assert.equal(r.run('state.selected'), 3);
+  assert.equal(r.run('rebuilds'), 0);
+});
+
+test('flipping save/skip does not rebuild, but still records the edit', () => {
+  const r = renderer();
+  r.run(`
+    rebuilds = 0; saved = 0;
+    renderTimeline = renderSegmentList = renderMinimap = () => { rebuilds++; };
+    saveEdits = () => { saved++; };
+    state.duration = 400; state.hasEdits = false;
+    state.segments = [
+      { id: 1, start: 0, end: 200, duration: 200, keep: true },
+      { id: 2, start: 200, end: 400, duration: 200, keep: false },
+    ];
+    toggleSegment(1);
+  `);
+  assert.equal(r.run('state.segments[0].keep'), false, 'the flag still flips');
+  assert.equal(r.run('rebuilds'), 0, 'without a rebuild');
+  assert.equal(r.run('state.hasEdits'), true, 'and it still counts as an edit');
+  assert.equal(r.run('saved'), 1, 'and still autosaves');
+});
+
+test('structural edits still rebuild', () => {
+  const r = renderer();
+  r.run(`
+    rebuilds = 0;
+    renderTimeline = renderSegmentList = () => { rebuilds++; };
+    state.duration = 400;
+    state.segments = [
+      { id: 1, start: 0, end: 200, duration: 200, keep: true },
+      { id: 2, start: 200, end: 400, duration: 200, keep: false },
+    ];
+    history.past = []; history.future = [];
+    toggleSegment(1);
+    const afterToggle = rebuilds;
+    undoEdit();
+    result = { afterToggle, afterUndo: rebuilds };
+  `);
+  const out = r.run('result');
+  assert.equal(out.afterToggle, 0);
+  assert.ok(out.afterUndo > 0, 'undo has to repaint everything it restored');
+});

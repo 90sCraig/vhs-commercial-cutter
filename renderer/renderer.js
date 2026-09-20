@@ -557,6 +557,7 @@ function renderTimeline() {
   for (const seg of state.segments) {
     const el = document.createElement('div');
     el.className = 'seg ' + segClass(seg);
+    el.dataset.segId = seg.id;
     // Position by absolute time so segments line up with the playhead, scale,
     // and boundary handles. Gaps (black transitions) show as empty timeline.
     el.style.left = (seg.start / dur * 100) + '%';
@@ -644,6 +645,7 @@ function renderMinimap() {
   for (const seg of state.segments) {
     const el = document.createElement('div');
     el.className = 'mseg ' + segClass(seg);
+    el.dataset.segId = seg.id;
     el.style.left = (seg.start / dur * 100) + '%';
     el.style.width = (Math.max(0, seg.duration) / dur * 100) + '%';
     mm.insertBefore(el, win);
@@ -808,6 +810,68 @@ function previewSegment(seg) {
   p.play().catch(() => {});
 }
 
+// Selecting a clip and flipping it between save and skip are the two things
+// that happen constantly while cutting a tape, and both used to go through a
+// full rebuild: renderTimeline() and renderSegmentList() drop and recreate
+// every segment, boundary handle, minimap bar and list row, with fresh event
+// listeners on each. On a 156-segment tape that is roughly 470 elements per
+// keypress, and the cost grows with the length of the tape -- measured at
+// 1.6ms for 8 segments, 20ms for 156 and 40ms for 300. Neither action changes
+// the shape of anything, so both are now direct updates that cost the same
+// whatever the tape.
+
+function segNodes(id) {
+  return {
+    bar: $('timeline').querySelector(`.seg[data-seg-id="${id}"]`),
+    mini: $('minimap').querySelector(`.mseg[data-seg-id="${id}"]`),
+    row: $('segmentList').querySelector(`.seg-row[data-seg-id="${id}"]`),
+  };
+}
+
+function applySelection() {
+  for (const el of $('timeline').querySelectorAll('.seg.selected')) el.classList.remove('selected');
+  for (const el of $('segmentList').querySelectorAll('.seg-row.selected')) el.classList.remove('selected');
+  if (state.selected == null) return;
+  const { bar, row } = segNodes(state.selected);
+  if (bar) bar.classList.add('selected');
+  if (row) row.classList.add('selected');
+}
+
+function updateSegCount() {
+  if (state.segments.length === 0) return;
+  const saved = state.segments.filter((s) => s.keep).length;
+  $('segCount').textContent = `${state.segments.length} segments · ${saved} saved`;
+}
+
+// Repaint one segment after its keep/skip flipped. Only the class carrying
+// that state and the tag's own text change; position and timings do not.
+function applySegmentState(seg) {
+  const cls = segClass(seg);
+  const other = cls === 'keep' ? 'cut' : 'keep';
+  const { bar, mini, row } = segNodes(seg.id);
+  for (const el of [bar, mini]) {
+    if (!el) continue;
+    el.classList.remove(other);
+    el.classList.add(cls);
+  }
+  if (bar) {
+    bar.title = `${fmtTime(seg.start)}–${fmtTime(seg.end)} (${fmtDur(seg.duration)}) · ${seg.keep ? 'save' : 'skip'}`
+      + `\nClick to select · double-click to switch to ${seg.keep ? 'skip' : 'save'}`;
+  }
+  if (row) {
+    const dot = row.querySelector('.seg-dot');
+    if (dot) { dot.classList.remove(other); dot.classList.add(cls); }
+    const tag = row.querySelector('.seg-tag');
+    if (tag) {
+      tag.classList.remove(other);
+      tag.classList.add(cls);
+      tag.textContent = seg.keep ? 'save' : 'skip';
+      tag.title = `Click to switch to ${seg.keep ? 'skip' : 'save'}`;
+    }
+  }
+  updateSegCount();
+}
+
 function selectSegment(id, { seek = false, play = false } = {}) {
   state.selected = id;
   const seg = state.segments.find((s) => s.id === id);
@@ -824,8 +888,7 @@ function selectSegment(id, { seek = false, play = false } = {}) {
     if (play) previewSegment(seg);
     else if (seek) { state.previewEnd = null; fastSeekTo(p, seg.start + 0.03); }
   }
-  renderTimeline();
-  renderSegmentList();
+  applySelection();
   if (seg) { scrollSegIntoView(seg); scrollSegRowIntoView(id); }
 }
 
@@ -834,7 +897,12 @@ function toggleSegment(id) {
   if (!seg) return;
   pushHistory();
   seg.keep = !seg.keep;
-  refreshSegments();
+  // Same side effects as refreshSegments(), without rebuilding every node to
+  // change one segment's class.
+  applySegmentState(seg);
+  updateExportSummary();
+  state.hasEdits = true;
+  saveEdits();
 }
 
 // ---- undo -------------------------------------------------------------
