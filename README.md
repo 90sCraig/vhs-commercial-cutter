@@ -183,6 +183,12 @@ npm run pack  # unpacked app only (dist\win-unpacked)
 
 ### If the app won't start after installing
 
+`npm install` runs `scripts/verify-electron.js` afterwards, which checks that
+Electron's binary is actually there and unpacks it from the cached download if
+it is not, so most of this should never reach you. It prints nothing when
+everything is fine. The rest of this section is what it is protecting against,
+and what to do if it reports that it cannot repair the install.
+
 Two separate problems can leave you with an Electron that never unpacked. Both
 end at the same misleading error, which sends you to reinstall — and
 reinstalling does not fix either one:
