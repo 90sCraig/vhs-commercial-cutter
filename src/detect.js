@@ -24,6 +24,7 @@ const DEFAULTS = {
   coincidenceTol: 1.0, // seconds: how close black & silence must be to "coincide"
   minCommercialLen: 8, // s: shorter content stays in the list, skipped for review
   maxCommercialLen: 360, // s: a content segment shorter than this is guessed commercial
+  groupGap: 7, // s: join consecutive ad candidates across short transitions
   // Scene-change rate, measured per segment and reported as cutsPerMin. Ads cut
   // faster than programs, and on a test tape the gap was real (26.8/min across a
   // known ad block vs 10.3-11.7 across program). It is NOT used to classify:
@@ -149,6 +150,59 @@ function buildSegments(boundaries, duration, opts, scenes) {
   return segs;
 }
 
+// Promote spot-sized candidates into intact commercial breaks. Detection still
+// only proposes them: every commercial interval starts as `proposed` until the
+// editor checks both edges. The complement is rebuilt as program material so
+// every source frame belongs to one side of the edit decision list.
+function buildBreakTimeline(spots, duration, opts, scenes) {
+  const runs = [];
+  for (let i = 0; i < spots.length; i++) {
+    if (!spots[i].keep) continue;
+    const first = i;
+    let last = i;
+    while (last + 1 < spots.length && spots[last + 1].keep
+        && spots[last + 1].start - spots[last].end <= opts.groupGap) last += 1;
+    const startSeg = spots[first];
+    const endSeg = spots[last];
+    const after = spots[last + 1];
+    runs.push({
+      start: startSeg.start,
+      end: endSeg.end,
+      keep: true,
+      classification: 'commercial',
+      reviewStatus: 'proposed',
+      label: '',
+      notes: '',
+      candidateCount: last - first + 1,
+      startEvidence: startSeg.start <= 0
+        ? 'recording edge'
+        : (startSeg.confidentBoundary ? 'black + quiet' : 'black'),
+      endEvidence: endSeg.end >= duration
+        ? 'recording edge'
+        : (after?.confidentBoundary ? 'black + quiet' : 'black'),
+      cutsPerMin: (() => {
+        const rate = cutRate(scenes, startSeg.start, endSeg.end);
+        return rate == null ? null : Math.round(rate * 10) / 10;
+      })(),
+    });
+    i = last;
+  }
+
+  const timeline = [];
+  let cursor = 0;
+  const add = (seg) => {
+    if (seg.end - seg.start <= 0) return;
+    timeline.push({ ...seg, id: timeline.length, duration: seg.end - seg.start });
+  };
+  for (const run of runs) {
+    add({ start: cursor, end: run.start, keep: false, classification: 'program', reviewStatus: 'not-required', confidentBoundary: false });
+    add(run);
+    cursor = run.end;
+  }
+  add({ start: cursor, end: duration, keep: false, classification: 'program', reviewStatus: 'not-required', confidentBoundary: false });
+  return timeline;
+}
+
 // One analysis pass: decode the file and collect black, silence and scene-cut
 // events. Shared by detect() and calibrate(). Decoding can be GPU-accelerated;
 // if that path fails we retry on plain CPU decode.
@@ -219,7 +273,8 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
 
   const { black, silence, scenes } = await scanEvents(filePath, opts, duration, hooks);
   const boundaries = buildBoundaries(black, silence, opts);
-  const segments = buildSegments(boundaries, duration, opts, scenes);
+  const spotCandidates = buildSegments(boundaries, duration, opts, scenes);
+  const segments = buildBreakTimeline(spotCandidates, duration, opts, scenes);
 
   return {
     info,
@@ -231,6 +286,8 @@ async function detect(filePath, userOpts = {}, hooks = {}) {
       silenceEvents: silence.length,
       sceneChanges: scenes.length,
       confidentBoundaries: boundaries.filter((b) => b.confident).length,
+      spotCandidates: spotCandidates.filter((s) => s.keep).length,
+      proposedBreaks: segments.filter((s) => s.keep).length,
     },
     opts,
   };

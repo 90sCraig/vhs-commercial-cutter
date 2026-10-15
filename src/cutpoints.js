@@ -52,15 +52,26 @@ function avisynth(segments, fps) {
   }).join(' ++ ');
 }
 
+function csvField(value) {
+  const text = String(value == null ? '' : value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 function csv(segments, fps) {
-  const rows = ['index,start_frame,end_frame,start_tc,end_tc,start_seconds,end_seconds,duration_seconds'];
+  const rows = ['index,start_frame,end_frame,start_tc,end_tc,start_seconds,end_seconds,duration_seconds,output_start_seconds,output_end_seconds,classification,review_status,label,start_evidence,end_evidence,notes'];
+  let outputCursor = 0;
   segments.forEach((s, i) => {
     const { first, last } = frameRange(s, fps);
+    const duration = s.end - s.start;
     rows.push([
       i + 1, first, last,
       timecode(s.start), timecode(s.end),
-      s.start.toFixed(3), s.end.toFixed(3), (s.end - s.start).toFixed(3),
-    ].join(','));
+      s.start.toFixed(3), s.end.toFixed(3), duration.toFixed(3),
+      outputCursor.toFixed(3), (outputCursor + duration).toFixed(3),
+      s.classification || (s.keep ? 'commercial' : 'program'),
+      s.reviewStatus || '', s.label || '', s.startEvidence || '', s.endEvidence || '', s.notes || '',
+    ].map(csvField).join(','));
+    outputCursor += duration;
   });
   return rows.join('\n');
 }

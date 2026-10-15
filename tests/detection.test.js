@@ -32,16 +32,28 @@ for (const duration of [2, 8, 30, 359, 360, 1200]) {
   });
 }
 
-test('short content stays available between transitions and at both ends', async () => {
+test('spot candidates become proposed whole breaks and preserve the full timeline', async () => {
   const d = detector({ duration: 30, events: [black(2, 2.5), black(10.5, 11), black(16, 16.5), black(28, 28.5)] });
   const result = await d.detect('tape');
   assert.deepEqual(Array.from(result.segments, s => [s.start, s.end, s.keep]),
-    [[0, 2, false], [2.5, 10.5, true], [11, 16, false], [16.5, 28, true], [28.5, 30, false]]);
-  assert.equal(result.segments.reduce((sum, s) => sum + s.duration, 0), 28);
+    [[0, 2.5, false], [2.5, 10.5, true], [10.5, 16.5, false], [16.5, 28, true], [28, 30, false]]);
+  assert.equal(result.segments.reduce((sum, s) => sum + s.duration, 0), 30);
+  assert.equal(result.segments[1].reviewStatus, 'proposed');
+  assert.equal(result.segments[1].classification, 'commercial');
+  assert.equal(result.stats.proposedBreaks, 2);
   const relaxed = await d.detect('tape', { minCommercialLen: 2 });
-  assert.deepEqual(Array.from(relaxed.segments, s => [s.start, s.end]),
-    Array.from(result.segments, s => [s.start, s.end]));
-  assert.equal(relaxed.segments[2].keep, true);
+  assert.deepEqual(Array.from(relaxed.segments, s => [s.start, s.end, s.keep]),
+    [[0, 28, true], [28, 30, false]]);
+  assert.equal(relaxed.segments[0].candidateCount, 4);
+});
+
+test('nearby ad candidates are grouped, including their black transition', async () => {
+  const d = detector({ duration: 100, events: [black(35, 35.2), black(55, 55.4), black(65, 65.2)] });
+  const result = await d.detect('tape', { minCommercialLen: 8, maxCommercialLen: 30, groupGap: 7 });
+  assert.deepEqual(Array.from(result.segments, s => [s.start, s.end, s.keep]),
+    [[0, 35.2, false], [35.2, 65, true], [65, 100, false]]);
+  assert.equal(result.segments[1].candidateCount, 2);
+  assert.equal(result.segments[1].reviewStatus, 'proposed');
 });
 
 test('sample shares restoration filters, shifts timestamps and clamps to EOF', async () => {

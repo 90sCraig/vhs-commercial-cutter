@@ -38,6 +38,7 @@ const DEFAULTS = {
     silenceDb: -30,
     minCommercial: 8,
     maxCommercial: 360,
+    groupGap: 7,
   },
 };
 

@@ -11,6 +11,7 @@ const root = path.resolve(__dirname, '..');
 
 function renderer() {
   const elements = new Map();
+  const listeners = new Map();
   const get = (id) => {
     if (!elements.has(id)) elements.set(id, {
       value: '0', checked: false, style: {}, currentTime: 0,
@@ -21,6 +22,18 @@ function renderer() {
     });
     return elements.get(id);
   };
+  const document = {
+    getElementById: get,
+    querySelector: () => get('query'),
+    body: get('body'),
+    createElement: () => ({ appendChild() {}, insertBefore() {}, dataset: {}, style: {},
+      classList: { add() {}, remove() {}, toggle() {} }, addEventListener() {}, querySelector: () => null }),
+    documentElement: { dataset: {} },
+    addEventListener: (type, fn) => listeners.set(type, fn),
+    removeEventListener: (type, fn) => {
+      if (listeners.get(type) === fn) listeners.delete(type);
+    },
+  };
   const calls = [];
   const api = {
     probe: async () => ({ duration: 300, fps: 30, width: 640 }),
@@ -29,12 +42,7 @@ function renderer() {
     renderPreview: async (payload) => { calls.push(payload); return 'C:/sample.mp4'; },
   };
   const context = vm.createContext({
-    document: {
-      getElementById: get, querySelector: () => get("query"),
-      createElement: () => ({ appendChild() {}, insertBefore() {} }),
-      documentElement: { dataset: {} },
-    },
-    window: { api, matchMedia: () => ({ matches: false, addEventListener() {} }) }, Event: class {},
+    document, window: { api, matchMedia: () => ({ matches: false, addEventListener() {} }) }, Event: class {},
     setTimeout: () => 0, clearTimeout() {},
   });
   const run = (code) => vm.runInContext(code, context);
@@ -42,7 +50,7 @@ function renderer() {
   run(`clearHistory = resetTearNotice = buildProxyFor = renderTimeline =
     renderSegmentList = updateExportSummary = applyLiveColor = () => {};
     colorSettings = () => ({ enabled: false }); exportQuality = () => 'high'; exportMode = () => 'merged';`);
-  return { run, get, calls, api };
+  return { run, get, calls, api, listeners };
 }
 
 test('new tape exits its sample to the new original before a proxy is ready', async () => {
@@ -105,6 +113,36 @@ test('splitting a processed sample cuts at its source position', async () => {
   assert.equal(r.run('sourceTime()'), 23);
 });
 
+test('dragging a detected boundary resizes both adjacent clips', () => {
+  const r = renderer();
+  const left = { style: {} }, right = { style: {} };
+  const handle = {
+    style: {}, setPointerCapture() {}, releasePointerCapture() {},
+  };
+  const timeline = r.get('timeline');
+  timeline.querySelectorAll = () => [left, right];
+  timeline.getBoundingClientRect = () => ({ left: 0, width: 100 });
+
+  r.run(`state.duration = 100; state.segments = [
+    { id: 0, start: 0, end: 40, duration: 40, keep: false },
+    { id: 1, start: 40, end: 100, duration: 60, keep: true }
+  ]`);
+  r.run('startBoundaryDrag').call(null, {
+    currentTarget: handle, pointerId: 1, preventDefault() {}, stopPropagation() {},
+  }, 0);
+  r.listeners.get('pointermove')({ clientX: 65 });
+
+  assert.equal(r.run('state.segments[0].end'), 65);
+  assert.equal(r.run('state.segments[1].start'), 65);
+  assert.equal(left.style.width, '65%');
+  assert.equal(right.style.left, '65%');
+  assert.equal(handle.style.left, '65%');
+
+  r.listeners.get('pointerup')();
+  assert.equal(r.listeners.has('pointermove'), false);
+  assert.equal(r.run('state.hasEdits'), true);
+});
+
 test('failed autosave blocks file switching and keeps current edits', async () => {
   const r = renderer();
   await r.run(`loadFile('C:/tape.mp4')`);
@@ -143,9 +181,10 @@ function exporter(onEncode = () => {}) {
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
     module, process, require: (name) => name === './ffmpeg' ? {
-      tmpDir: os.tmpdir(), ffprobeInfo: async () => ({ duration: 10 }),
+      tmpDir: os.tmpdir(), ffprobeInfo: async () => ({ duration: 10, width: 640 }),
       runFfmpeg: async (args) => {
         calls.push(args);
+        if (args.includes('null')) return; // full-decode validation writes to the null muxer
         fs.writeFileSync(args.at(-1), 'encoded video');
         onEncode(args);
       },

@@ -42,6 +42,19 @@ const ENHANCE = {
   ep: { denoise: 'hqdn3d=6:5:9:9', sharpen: 'unsharp=5:5:1.2:5:5:0.0' },
 };
 
+// A successful encode is not enough: force FFmpeg to read every packet and
+// decode both streams before the staged file is published to the destination.
+async function validateRenderedFile(filePath) {
+  const info = await ffprobeInfo(filePath);
+  if (!info.duration || !info.width) throw new Error('Rendered file failed validation: no usable video stream.');
+  const NUL = process.platform === 'win32' ? 'NUL' : '/dev/null';
+  await runFfmpeg([
+    '-hide_banner', '-v', 'error', '-i', filePath,
+    '-map', '0:v:0?', '-map', '0:a:0?', '-f', 'null', NUL,
+  ]);
+  return info;
+}
+
 // The color-correction sub-filter (no leading comma), or '' if disabled.
 function colorEq(correction) {
   if (!correction || !correction.enabled) return '';
@@ -294,6 +307,8 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
         if (await encodeWithFallback(input, s.start, dur, staged, active, (secs) => {
           hooks.onProgress && hooks.onProgress(Math.min(1, (doneDuration + secs) / totalDuration));
         }, hooks)) { active = { ...active, encoder: 'cpu' }; fellBackToCpu = true; }
+        hooks.onStatus && hooks.onStatus(`Checking clip ${i} of ${chosen.length}…`);
+        await validateRenderedFile(staged);
         await fs.promises.copyFile(staged, out, fs.constants.COPYFILE_EXCL);
         fs.unlinkSync(staged);
         doneDuration += dur;
@@ -319,6 +334,8 @@ async function exportVideo({ input, segments, mode, target = 'save', correction,
       const staged = path.join(work, 'joined.mp4');
       hooks.onStatus && hooks.onStatus('Joining segments…');
       await concatParts(parts, staged, work);
+      hooks.onStatus && hooks.onStatus('Checking the complete export…');
+      await validateRenderedFile(staged);
       for (const part of parts) fs.unlinkSync(part);
       // Exclusive creation also protects files created during a long export.
       await fs.promises.copyFile(staged, out, fs.constants.COPYFILE_EXCL);

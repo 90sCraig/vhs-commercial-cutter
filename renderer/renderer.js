@@ -59,6 +59,17 @@ function toast(msg, isError = false) {
 
 // Saved clips use phosphor; skipped clips use neutral gray.
 function segClass(seg) { return seg.keep ? 'keep' : 'cut'; }
+function normalizeSegment(seg) {
+  const keep = !!seg.keep;
+  return {
+    ...seg,
+    keep,
+    classification: seg.classification || (keep ? 'commercial' : 'program'),
+    reviewStatus: seg.reviewStatus || (keep ? 'approved' : 'not-required'),
+    label: seg.label || '',
+    notes: seg.notes || '',
+  };
+}
 
 // ---- recoverable edit sessions ----------------------------------------
 const SESSION_CONTROLS = ['colorEnabled', 'brightness', 'contrast', 'saturation', 'gamma',
@@ -130,8 +141,8 @@ async function loadFile(filePath) {
     state.usingProxy = false;
     state.hasEdits = !!session?.hasEdits;
     state.restoredSession = !!session;
-    state.segments = session ? session.segments.map(s => ({ ...s, duration: s.end - s.start }))
-      : [{ id: 0, start: 0, end: info.duration, duration: info.duration, keep: false, confidentBoundary: false }];
+    state.segments = session ? session.segments.map(s => normalizeSegment({ ...s, duration: s.end - s.start }))
+      : [normalizeSegment({ id: 0, start: 0, end: info.duration, duration: info.duration, keep: false, confidentBoundary: false })];
     state.selected = session?.selected ?? state.segments[0].id;
     state.outputDir = session?.outputDir || null;
     $('outputDir').value = state.outputDir || '';
@@ -276,7 +287,7 @@ const DETECT_PRESETS = {
   aggressive: { blackThreshold: 0.22, silenceDb: -20, minCommercial: 12, maxCommercial: 360 },
 };
 
-const DETECT_SLIDERS = ['blackThreshold', 'silenceDb', 'minCommercial', 'maxCommercial'];
+const DETECT_SLIDERS = ['blackThreshold', 'silenceDb', 'minCommercial', 'maxCommercial', 'groupGap'];
 
 // Push the remembered thresholds back into the controls on startup. Safe to run
 // before or after bindSlider: dispatching 'input' updates the readout if the
@@ -299,6 +310,7 @@ async function saveDetectSettings() {
       silenceDb: parseInt($('silenceDb').value, 10),
       minCommercial: parseInt($('minCommercial').value, 10),
       maxCommercial: parseInt($('maxCommercial').value, 10),
+      groupGap: parseInt($('groupGap').value, 10),
     },
   });
 }
@@ -323,6 +335,7 @@ function detectOpts() {
     silenceDb: parseInt($('silenceDb').value, 10),
     minCommercialLen: parseInt($('minCommercial').value, 10),
     maxCommercialLen: parseInt($('maxCommercial').value, 10),
+    groupGap: parseInt($('groupGap').value, 10),
     // Repairing before the scan keeps the cuts-per-minute figure honest: a torn
     // frame otherwise registers as two scene changes.
     repairTears: $('repairTears').checked,
@@ -522,7 +535,8 @@ async function runDetect() {
     state.selected = res.segments[0]?.id ?? null;
     const saved = res.segments.filter((s) => s.keep).length;
     $('detectStats').textContent =
-      `${res.segments.length} segments · ${res.stats.confidentBoundaries} strong boundaries · ` +
+      `${res.stats.proposedBreaks} proposed breaks from ${res.stats.spotCandidates} ad candidates · ` +
+      `${res.stats.confidentBoundaries} strong boundaries · ` +
       `${res.stats.blackEvents} black / ${res.stats.silenceEvents} silence events`;
     renderTimeline();
     renderSegmentList();
@@ -544,7 +558,11 @@ async function runDetect() {
 function renderTimeline() {
   const tl = $('timeline');
   const playhead = $('playhead');
-  tl.querySelectorAll('.seg').forEach((n) => n.remove());
+  // Everything except the playhead is rebuilt from state. Removing all of the
+  // generated pieces matters: otherwise every selection/render leaves another
+  // invisible stack of boundary handles behind, including handles whose index
+  // no longer matches the segment list after a new detection or merge.
+  tl.querySelectorAll('.seg, .bhandle, .sample-band, .sample-tick').forEach((n) => n.remove());
   const dur = state.duration || 1;
   $('timelineTrack').style.width = (state.zoom * 100) + '%';
 
@@ -556,7 +574,7 @@ function renderTimeline() {
 
   for (const seg of state.segments) {
     const el = document.createElement('div');
-    el.className = 'seg ' + segClass(seg);
+    el.className = 'seg ' + segClass(seg) + (seg.reviewStatus === 'proposed' ? ' proposed' : '');
     el.dataset.segId = seg.id;
     // Position by absolute time so segments line up with the playhead, scale,
     // and boundary handles. Gaps (black transitions) show as empty timeline.
@@ -615,18 +633,50 @@ function startBoundaryDrag(e, i) {
   e.stopPropagation();
   pushHistory(); // once per drag, not once per pixel of movement
   const tl = $('timeline');
+  const handle = e.currentTarget;
+  const segmentEls = tl.querySelectorAll('.seg');
+  const aEl = segmentEls[i], bEl = segmentEls[i + 1];
+  const pointerId = e.pointerId;
+  let finished = false;
+
+  // Keep receiving moves if the pointer leaves the narrow nine-pixel handle.
+  // The handle must stay in the DOM until pointerup or Electron drops capture.
+  if (handle?.setPointerCapture && pointerId != null) {
+    try { handle.setPointerCapture(pointerId); } catch (_) { /* document listeners remain as fallback */ }
+  }
+  document.body.classList.add('boundary-resizing');
+
   const move = (ev) => {
     const rect = tl.getBoundingClientRect();
     const a = state.segments[i], b = state.segments[i + 1];
+    if (!a || !b || !rect.width) return;
     let t = (ev.clientX - rect.left) / rect.width * state.duration;
     t = clamp(t, a.start + 0.05, b.end - 0.05);
     a.end = t; b.start = t;
+    if (a.keep) { a.reviewStatus = 'proposed'; a.endEvidence = 'manual'; }
+    if (b.keep) { b.reviewStatus = 'proposed'; b.startEvidence = 'manual'; }
     recalc(a); recalc(b);
-    renderTimeline();
+    // Update the three affected elements in place. Rebuilding the timeline
+    // here used to replace the active drag target during pointer movement.
+    const dur = state.duration || 1;
+    if (aEl) aEl.style.width = (a.duration / dur * 100) + '%';
+    if (bEl) {
+      bEl.style.left = (b.start / dur * 100) + '%';
+      bEl.style.width = (b.duration / dur * 100) + '%';
+    }
+    if (handle) handle.style.left = (t / dur * 100) + '%';
   };
   const up = () => {
+    if (finished) return;
+    finished = true;
     document.removeEventListener('pointermove', move);
     document.removeEventListener('pointerup', up);
+    document.removeEventListener('pointercancel', up);
+    document.body.classList.remove('boundary-resizing');
+    if (handle?.releasePointerCapture && pointerId != null) {
+      try { handle.releasePointerCapture(pointerId); } catch (_) { /* capture may already be gone */ }
+    }
+    renderTimeline();
     renderSegmentList();
     updateExportSummary();
     state.hasEdits = true;
@@ -634,6 +684,7 @@ function startBoundaryDrag(e, i) {
   };
   document.addEventListener('pointermove', move);
   document.addEventListener('pointerup', up);
+  document.addEventListener('pointercancel', up);
 }
 
 // ---- minimap overview -------------------------------------------------
@@ -720,7 +771,9 @@ function zoomAround(newZoom, contentRatio, viewportX) {
   const scroll = $('timelineScroll');
   state.zoom = Math.min(60, Math.max(1, newZoom));
   $('timelineTrack').style.width = (state.zoom * 100) + '%';
-  renderScale();
+  // Handle crowding depends on the rendered width, so rebuild them as zoom
+  // changes. This also brings previously hidden close boundaries back.
+  renderTimeline();
   const contentW = scroll.scrollWidth;
   scroll.scrollLeft = contentRatio * contentW - viewportX;
   updateZoomLabel();
@@ -772,6 +825,7 @@ function renderSegmentList() {
   if (state.segments.length === 0) {
     list.innerHTML = '<div class="empty-note">Open a tape to cut manually or run detection.</div>';
     $('segCount').textContent = 'Segments';
+    $('reviewDeck').classList.add('hidden');
     return;
   }
   const saved = state.segments.filter((s) => s.keep).length;
@@ -779,19 +833,62 @@ function renderSegmentList() {
   list.innerHTML = '';
   state.segments.forEach((seg, idx) => {
     const row = document.createElement('div');
-    row.className = 'seg-row' + (state.selected === seg.id ? ' selected' : '');
+    row.className = 'seg-row' + (state.selected === seg.id ? ' selected' : '')
+      + (seg.reviewStatus === 'proposed' ? ' proposed' : '');
     row.dataset.segId = seg.id;
     row.innerHTML = `
       <span class="seg-dot ${segClass(seg)}"></span>
       <span class="seg-time">${String(idx + 1).padStart(2, '0')} · ${fmtTime(seg.start)} → ${fmtTime(seg.end)}</span>
       <span class="seg-dur">${fmtDur(seg.duration)}</span>
       <span class="seg-cuts" title="Scene changes per minute. Ads tend to cut faster than the show.">${seg.cutsPerMin == null ? '' : seg.cutsPerMin + '/min'}</span>
+      <span class="seg-review">${seg.reviewStatus === 'proposed' ? 'review' : (seg.keep ? 'approved' : '')}</span>
       <span class="seg-tag ${segClass(seg)}" title="Click to switch to ${seg.keep ? 'skip' : 'save'}">${seg.keep ? 'save' : 'skip'}</span>`;
     row.addEventListener('click', () => selectSegment(seg.id, { seek: true, play: true }));
     const tag = row.querySelector('.seg-tag');
     tag.addEventListener('click', (e) => { e.stopPropagation(); toggleSegment(seg.id); });
     list.appendChild(row);
   });
+  renderReviewDeck();
+}
+
+function renderReviewDeck() {
+  const deck = $('reviewDeck');
+  const seg = state.segments.find((s) => s.id === state.selected);
+  if (!seg || !seg.keep) { deck.classList.add('hidden'); return; }
+  deck.classList.remove('hidden');
+  const proposed = seg.reviewStatus !== 'approved';
+  $('reviewState').textContent = proposed ? 'Proposed whole break' : 'Approved whole break';
+  $('reviewState').className = 'review-state ' + (proposed ? 'proposed' : 'approved');
+  $('reviewEvidence').textContent = `start: ${seg.startEvidence || 'manual'} · end: ${seg.endEvidence || 'manual'}`
+    + (seg.candidateCount > 1 ? ` · ${seg.candidateCount} ad candidates grouped` : '');
+  $('approveBreakBtn').textContent = proposed ? 'Approve break' : 'Mark for review';
+  $('nextReviewBtn').disabled = !state.segments.some((s) => s.keep && s.reviewStatus === 'proposed' && s.id !== seg.id);
+}
+
+function previewBoundary(side) {
+  const seg = state.segments.find((s) => s.id === state.selected);
+  if (!seg || !seg.keep) return;
+  if (state.inSamplePreview) exitSamplePreview();
+  const edge = side === 'start' ? seg.start : seg.end;
+  const player = $('player');
+  state.previewEnd = Math.min(state.duration, edge + 6);
+  fastSeekTo(player, Math.max(0, edge - 6));
+  player.play().catch(() => {});
+}
+
+function toggleBreakApproval() {
+  const seg = state.segments.find((s) => s.id === state.selected);
+  if (!seg || !seg.keep) return;
+  pushHistory();
+  seg.reviewStatus = seg.reviewStatus === 'approved' ? 'proposed' : 'approved';
+  refreshSegments();
+}
+
+function nextProposedBreak() {
+  const proposed = state.segments.filter((s) => s.keep && s.reviewStatus === 'proposed');
+  if (!proposed.length) return toast('Every saved break is approved.');
+  const current = proposed.findIndex((s) => s.id === state.selected);
+  selectSegment(proposed[(current + 1) % proposed.length].id, { seek: true });
 }
 
 function fastSeekTo(p, t) {
@@ -855,10 +952,12 @@ function applySegmentState(seg) {
     el.classList.add(cls);
   }
   if (bar) {
+    bar.classList.toggle('proposed', seg.reviewStatus === 'proposed');
     bar.title = `${fmtTime(seg.start)}–${fmtTime(seg.end)} (${fmtDur(seg.duration)}) · ${seg.keep ? 'save' : 'skip'}`
       + `\nClick to select · double-click to switch to ${seg.keep ? 'skip' : 'save'}`;
   }
   if (row) {
+    row.classList.toggle('proposed', seg.reviewStatus === 'proposed');
     const dot = row.querySelector('.seg-dot');
     if (dot) { dot.classList.remove(other); dot.classList.add(cls); }
     const tag = row.querySelector('.seg-tag');
@@ -868,8 +967,11 @@ function applySegmentState(seg) {
       tag.textContent = seg.keep ? 'save' : 'skip';
       tag.title = `Click to switch to ${seg.keep ? 'skip' : 'save'}`;
     }
+    const review = row.querySelector('.seg-review');
+    if (review) review.textContent = seg.reviewStatus === 'proposed' ? 'review' : (seg.keep ? 'approved' : '');
   }
   updateSegCount();
+  renderReviewDeck();
 }
 
 function selectSegment(id, { seek = false, play = false } = {}) {
@@ -889,6 +991,7 @@ function selectSegment(id, { seek = false, play = false } = {}) {
     else if (seek) { state.previewEnd = null; fastSeekTo(p, seg.start + 0.03); }
   }
   applySelection();
+  renderReviewDeck();
   if (seg) { scrollSegIntoView(seg); scrollSegRowIntoView(id); }
 }
 
@@ -897,6 +1000,8 @@ function toggleSegment(id) {
   if (!seg) return;
   pushHistory();
   seg.keep = !seg.keep;
+  seg.classification = seg.keep ? 'commercial' : 'program';
+  seg.reviewStatus = seg.keep ? 'proposed' : 'not-required';
   // Same side effects as refreshSegments(), without rebuilding every node to
   // change one segment's class.
   applySegmentState(seg);
@@ -992,7 +1097,9 @@ function splitAtPlayhead() {
   if (idx < 0) return toast('Move the playhead inside a clip to split it.', true);
   pushHistory();
   const seg = state.segments[idx];
-  const tail = { id: nextSegId(), start: t, end: seg.end, keep: seg.keep, confidentBoundary: false };
+  const tail = normalizeSegment({ ...seg, id: nextSegId(), start: t, end: seg.end,
+    reviewStatus: seg.keep ? 'proposed' : 'not-required', startEvidence: 'manual' });
+  if (seg.keep) seg.reviewStatus = 'proposed';
   seg.end = t;
   recalc(seg); recalc(tail);
   state.segments.splice(idx + 1, 0, tail);
@@ -1010,6 +1117,7 @@ function mergeWithNeighbor(dir) {
   const lo = Math.min(idx, j), hi = Math.max(idx, j);
   const a = state.segments[lo], b = state.segments[hi];
   a.end = b.end; recalc(a);       // keep the earlier clip's keep/cut state
+  if (a.keep) { a.reviewStatus = 'proposed'; a.endEvidence = b.endEvidence || 'manual'; }
   state.segments.splice(hi, 1);
   state.selected = a.id;
   refreshSegments();
@@ -1025,6 +1133,7 @@ function setInPoint() {
   const prev = state.segments[idx - 1];
   const t = clamp(editTime(), (prev ? prev.start : 0) + 0.05, seg.end - 0.05);
   seg.start = t; recalc(seg);
+  if (seg.keep) { seg.reviewStatus = 'proposed'; seg.startEvidence = 'manual'; }
   if (prev) { prev.end = t; recalc(prev); }
   refreshSegments();
 }
@@ -1036,6 +1145,7 @@ function setOutPoint() {
   const next = state.segments[idx + 1];
   const t = clamp(editTime(), seg.start + 0.05, (next ? next.end : state.duration) - 0.05);
   seg.end = t; recalc(seg);
+  if (seg.keep) { seg.reviewStatus = 'proposed'; seg.endEvidence = 'manual'; }
   if (next) { next.start = t; recalc(next); }
   refreshSegments();
 }
@@ -1449,6 +1559,7 @@ const FRAME_LABELS = {
 function updateExportSummary() {
   const target = exportTarget();
   const chosen = state.segments.filter((s) => (target === 'skip' ? !s.keep : s.keep));
+  const proposed = chosen.filter((s) => s.keep && s.reviewStatus === 'proposed').length;
   const noun = target === 'skip' ? 'show' : 'commercial';
   // Cut points depend only on there being segments at all — the handler says
   // so if the chosen side happens to be empty.
@@ -1467,6 +1578,7 @@ function updateExportSummary() {
   $('exportSummary').innerHTML =
     `Exporting <b>${chosen.length}</b> ${noun} clip(s) · ${fmtTime(total)}${frameNote}<br>` +
     (mode === 'merged' ? 'Output: one merged file' : `Output: ${chosen.length} separate clips`) +
+    (proposed ? `<br><span class="review-warning">${proposed} break${proposed === 1 ? '' : 's'} still need edge review</span>` : '') +
     `<br><span class="muted">${bits.join(' · ')}</span>`;
   $('exportBtn').disabled = false;
 }
@@ -1890,13 +2002,17 @@ function init() {
   $('keepAllBtn').addEventListener('click', () => {
     if (!state.segments.length) return;
     pushHistory();
-    state.segments.forEach((s) => (s.keep = true));
+    state.segments.forEach((s) => { s.keep = true; s.classification = 'commercial'; s.reviewStatus = 'proposed'; });
     refreshSegments();
   });
   $('invertBtn').addEventListener('click', () => {
     if (!state.segments.length) return;
     pushHistory();
-    state.segments.forEach((s) => (s.keep = !s.keep));
+    state.segments.forEach((s) => {
+      s.keep = !s.keep;
+      s.classification = s.keep ? 'commercial' : 'program';
+      s.reviewStatus = s.keep ? 'proposed' : 'not-required';
+    });
     refreshSegments();
   });
   $('undoBtn').addEventListener('click', undoEdit);
@@ -1908,6 +2024,10 @@ function init() {
   $('mergeNextBtn').addEventListener('click', () => mergeWithNeighbor(1));
   $('inBtn').addEventListener('click', setInPoint);
   $('outBtn').addEventListener('click', setOutPoint);
+  $('reviewInBtn').addEventListener('click', () => previewBoundary('start'));
+  $('reviewOutBtn').addEventListener('click', () => previewBoundary('end'));
+  $('approveBreakBtn').addEventListener('click', toggleBreakApproval);
+  $('nextReviewBtn').addEventListener('click', nextProposedBreak);
 
   document.addEventListener('keydown', (e) => {
     const tag = (e.target.tagName || '').toLowerCase();
@@ -1955,6 +2075,7 @@ function init() {
   bindSlider('silenceDb', 'silenceOut', (v) => `${v} dB`);
   bindSlider('minCommercial', 'minCommercialOut', (v) => `${v} s`);
   bindSlider('maxCommercial', 'maxCommercialOut', (v) => `${(v / 60).toFixed(1)} min`);
+  bindSlider('groupGap', 'groupGapOut', (v) => `${v} s`);
 
   $('detectPreset').addEventListener('change', () => {
     applyDetectPreset($('detectPreset').value);

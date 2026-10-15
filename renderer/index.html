@@ -173,6 +173,11 @@
             <input id="maxCommercial" type="range" min="30" max="600" step="10" value="360" />
             <small>Clips from the minimum up to this length are guessed to be commercials. Everything else stays in the list, marked skip.</small>
           </div>
+          <div class="field">
+            <label>Join nearby ads <output id="groupGapOut">7 s</output></label>
+            <input id="groupGap" type="range" min="0" max="15" step="1" value="7" />
+            <small>Keeps neighboring ad candidates in one complete break when only a short transition separates them.</small>
+          </div>
           <button id="detectBtn" class="btn btn-accent full" disabled>Detect commercials</button>
           <div id="detectStats" class="stats"></div>
 
@@ -194,7 +199,7 @@
           <details class="tips">
             <summary>Missing commercials, or grabbing too much?</summary>
             <ul>
-              <li><b>Commercials missed:</b> raise <b>Black sensitivity</b> (some tapes fade to dark gray, not pure black) and/or <b>Silence threshold</b>. Use <b>Test here</b> on a known break to check.</li>
+              <li><b>Commercials missed:</b> raise <b>Black sensitivity</b> (some tapes fade to dark gray, not pure black). Silence only strengthens confidence in a black-frame candidate. Use <b>Test here</b> on a known break to check.</li>
               <li><b>A commercial got skipped (or show got saved):</b> adjust <b>Min commercial length</b> and <b>Max commercial length</b> — clips within that range are guessed to be ads. Or flip any clip with <b>K</b>.</li>
               <li><b>Grabbing chunks of the show:</b> lower <b>Black sensitivity</b> and raise <b>Min commercial length</b>.</li>
               <li><b>Station never fades to black:</b> detection can’t see those — mark commercials by hand with <b>S</b> (split), then flip with <b>K</b>.</li>
@@ -360,6 +365,18 @@
           </div>
         </div>
       </div>
+      <div id="reviewDeck" class="review-deck hidden" aria-live="polite">
+        <div class="review-copy">
+          <span id="reviewState" class="review-state">Proposed break</span>
+          <span id="reviewEvidence" class="review-evidence"></span>
+        </div>
+        <div class="review-actions">
+          <button id="reviewInBtn" class="btn btn-small">Check start</button>
+          <button id="reviewOutBtn" class="btn btn-small">Check end</button>
+          <button id="approveBreakBtn" class="btn btn-small btn-review">Approve break</button>
+          <button id="nextReviewBtn" class="btn btn-small">Next proposed</button>
+        </div>
+      </div>
       <div id="segmentList" class="segment-list">
         <div class="empty-note">Open a tape to cut manually or run detection.</div>
       </div>
@@ -498,7 +515,7 @@
 
         <h3>The two jobs</h3>
         <ul>
-          <li><b>Commercials</b> — the main event: exports the clips you <b>saved</b>. Separate clips gives you one file per ad; one merged file gives you the whole ad break in one.</li>
+          <li><b>Commercials</b> — the main event: exports the breaks you <b>saved</b>. Separate clips gives you one file per approved break; one merged file joins them into a commercials-only reel.</li>
           <li><b>The show</b> — the reverse: exports what you <b>skipped</b>, commercials removed. Usually one merged file.</li>
         </ul>
 
@@ -509,6 +526,7 @@
           <li><b>Drag</b> the white boundary handles on the timeline to move where a clip starts/ends.</li>
           <li><kbd>S</kbd> <b>split</b> the selected clip at the playhead · <kbd>M</kbd> / <kbd>Shift</kbd>+<kbd>M</kbd> <b>merge</b> with the previous/next clip.</li>
           <li><kbd>I</kbd> / <kbd>O</kbd> snap the selected clip's <b>in / out</b> point to the playhead.</li>
+          <li>For a proposed commercial break, use <b>Check start</b> and <b>Check end</b> to hear and see six seconds on both sides, then approve it.</li>
         </ul>
 
         <h3>Detect settings</h3>
@@ -517,6 +535,7 @@
           <li><b>Silence threshold</b> — how quiet audio must be to support a break’s confidence. It does not change the cuts.</li>
           <li><b>Min commercial length</b> — shorter clips are marked skip, but remain available to review and save.</li>
           <li><b>Max commercial length</b> — clips between the minimum and this limit are guessed to be commercials. With no breaks, the whole recording is skipped regardless of length.</li>
+          <li><b>Join nearby ads</b> — groups consecutive candidates into a complete commercial break while preserving their transitions.</li>
         </ul>
         <p><b>Tune without scanning the whole tape:</b> scrub to a spot you know has a commercial break, then use <em>Test here</em> (under the Detect button) to scan just a short sample. Candidate breaks show as gray and white marks on the timeline. Adjust the sliders and re-test until it catches the break, then run full detection. If breaks are missed, raise <b>Black sensitivity</b>; if it over-cuts, lower it. Use the length limits to adjust which clips are initially marked save. Silence affects confidence only. Stations that never fade to black can't be detected — add those cuts by hand with <kbd>S</kbd>.</p>
 

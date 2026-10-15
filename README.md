@@ -72,7 +72,7 @@ This is a fault in the capture hardware, not the tape, so if one capture has it,
 
 ## Features
 
-- **Suggests commercial breaks for review.** Black intervals define the breaks; silent audio adds confidence. Clip length supplies an initial commercial guess. Turn the sensitivity up or down if it guesses wrong.
+- **Suggests complete commercial breaks for review.** Black intervals identify spot-sized candidates; nearby candidates are grouped into a proposed break with their transitions intact. Check both edges before approving it. Silent audio adds confidence and clip length supplies the initial commercial guess.
 - **A timeline you can work in.** Zoom, drag the cut points, split and merge clips, set in and out, step frame by frame from the keyboard. There is a minimap for the wide view.
 - **Scrubs fast on huge files.** It builds a small preview copy in the background so a giant MKV or a capture on your network still plays smooth. The cache is yours to control.
 - **Clean-up tools.** Denoise and sharpen by tape speed, push brightness, contrast, saturation and gamma, fix the RGB balance, repair torn frames, and pull the audio back in sync when it drifts.
@@ -112,7 +112,7 @@ Your video stays on your computer. Detection, preview building and export all ru
 
 1. **Open a tape.** Click *Open file…* or drag a video onto the player. MP4, MKV, AVI, MOV and most other things.
 2. **Find candidate breaks.** Hit *Detect commercials*, or start cutting by hand. Detection uses black transitions and clip length to suggest commercials; green clips are marked save, gray clips skip.
-3. **Check its work.** Click a clip to play it. Flip save/skip with a click or `K` while the editing area has focus. Drag the white edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
+3. **Check its work.** Click a proposed break, check its start and end with surrounding context, then approve it. Flip save/skip with a click or `K` while the editing area has focus. Drag the white edges, or `S` to split, `M` to merge, `I`/`O` to set in and out.
 4. **Pick what you're making.** Commercials or the show, as one merged file or separate clips.
 5. **Export.** Choose a folder and go. Export re-encodes from the original at your chosen quality. Detection can scan the smaller preview copy for speed; review the boundaries against your footage. Existing output files are never overwritten.
 
