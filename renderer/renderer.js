@@ -1818,6 +1818,12 @@ function fmtCache(bytes) {
 function openSettings() { $('settingsModal').classList.remove('hidden'); refreshCacheSize(); }
 function closeSettings() { $('settingsModal').classList.add('hidden'); }
 function settingsOpen() { return !$('settingsModal').classList.contains('hidden'); }
+function syncUpdateChannelNote() {
+  const beta = $('setUpdateChannel').value === 'beta';
+  $('updateChannelNote').textContent = beta
+    ? 'Includes prerelease builds for testing. Switch back to Stable when you want finished releases only.'
+    : 'Only finished releases intended for everyday use.';
+}
 async function refreshCacheSize() {
   try { $('cacheSizeLabel').textContent = 'Cache: ' + fmtCache(await window.api.cacheSize()); }
   catch (_) { $('cacheSizeLabel').textContent = 'Cache: —'; }
@@ -1841,6 +1847,8 @@ async function initSettings() {
   $('setCap').value = state.settings.proxyCacheCapGB;
   $('setCapOut').textContent = state.settings.proxyCacheCapGB + ' GB';
   $('setEncoder').value = state.settings.encoder;
+  $('setUpdateChannel').value = state.settings.updateChannel === 'beta' ? 'beta' : 'stable';
+  syncUpdateChannelNote();
   // First run probes the hardware in the background; catch up when it lands.
   window.api.onEncoderDetected((enc) => {
     state.settings.encoder = enc;
@@ -1854,6 +1862,14 @@ async function initSettings() {
     if (r.reason === 'dev') $('updateCheckStatus').textContent = 'Updates only work in the installed app.';
     else if (!r.ok) $('updateCheckStatus').textContent = 'Check failed (are you online / is a release published?).';
     else $('updateCheckStatus').textContent = 'Checked — you’ll be notified if an update is available.';
+  });
+
+  $('setUpdateChannel').addEventListener('change', async () => {
+    const updateChannel = $('setUpdateChannel').value === 'beta' ? 'beta' : 'stable';
+    syncUpdateChannelNote();
+    state.settings = await window.api.setSettings({ updateChannel });
+    const label = updateChannel === 'beta' ? 'Beta' : 'Stable';
+    $('updateCheckStatus').textContent = `${label} channel selected — check when ready.`;
   });
 
   $('settingsBtn').addEventListener('click', openSettings);

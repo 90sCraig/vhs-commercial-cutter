@@ -48,7 +48,7 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  win.webContents.once('did-finish-load', () => updater.initUpdater(win));
+  win.webContents.once('did-finish-load', () => updater.initUpdater(win, settings.load().updateChannel));
   win.webContents.on('will-prevent-unload', (event) => {
     const choice = dialog.showMessageBoxSync(win, {
       type: 'warning', buttons: ['Stay', 'Close without saving'], defaultId: 0, cancelId: 0,
@@ -253,6 +253,9 @@ handleJob('proxy:ensure', async (_e, { filePath, duration }) => {
 ipcMain.handle('settings:get', () => settings.load());
 ipcMain.handle('settings:set', (_e, partial) => {
   const merged = settings.save(partial);
+  if (Object.prototype.hasOwnProperty.call(partial, 'updateChannel')) {
+    updater.setUpdateChannel(merged.updateChannel);
+  }
   // Keep the native window background in step with the theme, so a resize or
   // a maximize never exposes the previous theme's color at the edges.
   if (win && !win.isDestroyed()) {

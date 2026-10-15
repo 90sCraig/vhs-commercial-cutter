@@ -478,6 +478,14 @@
 
         <h3>Updates</h3>
         <p>The app checks for updates on launch and notifies you — nothing downloads or installs without your say-so.</p>
+        <div class="field">
+          <label for="setUpdateChannel">Update channel</label>
+          <select id="setUpdateChannel">
+            <option value="stable">Stable — recommended</option>
+            <option value="beta">Beta — early test builds</option>
+          </select>
+          <small id="updateChannelNote">Only finished releases intended for everyday use.</small>
+        </div>
         <div class="settings-row">
           <span id="updateCheckStatus" class="muted">Version <span id="appVersion">…</span></span>
           <button id="checkUpdatesBtn" class="btn btn-small">Check for updates</button>

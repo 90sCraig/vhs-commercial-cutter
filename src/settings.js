@@ -26,6 +26,9 @@ const DEFAULTS = {
   theme: 'wcrg',
   themeLight: 'github-light',
   themeDark: 'wcrg',
+  // Stable ignores GitHub prereleases. Beta opts into them, but never permits
+  // downgrading to a version older than the one already installed.
+  updateChannel: 'stable',
   // Height in px of the segment list, dragged against the player. Remembered
   // because how much of it you want depends on the tape: eighty segments needs
   // a lot more list than eight.
@@ -55,7 +58,9 @@ function load() {
     const saved = JSON.parse(fs.readFileSync(file(), 'utf8'));
     // The spread is shallow, so `detect` has to be merged on its own or a file
     // written by an older version would drop whichever keys it predates.
-    return { ...DEFAULTS, ...saved, detect: { ...DEFAULTS.detect, ...(saved.detect || {}) } };
+    const merged = { ...DEFAULTS, ...saved, detect: { ...DEFAULTS.detect, ...(saved.detect || {}) } };
+    merged.updateChannel = merged.updateChannel === 'beta' ? 'beta' : 'stable';
+    return merged;
   } catch (_) {
     return { ...DEFAULTS, detect: { ...DEFAULTS.detect } };
   }
@@ -63,6 +68,7 @@ function load() {
 
 function save(partial) {
   const merged = { ...load(), ...partial };
+  merged.updateChannel = merged.updateChannel === 'beta' ? 'beta' : 'stable';
   try {
     fs.writeFileSync(file(), JSON.stringify(merged, null, 2));
   } catch (_) { /* ignore write errors */ }

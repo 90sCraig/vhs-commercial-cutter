@@ -3,8 +3,15 @@
 // Nothing downloads or installs without the user clicking.
 const { app } = require('electron');
 const { autoUpdater } = require('electron-updater');
+const { applyUpdateChannel } = require('./update-channel');
 
-function initUpdater(win) {
+function setUpdateChannel(channel) {
+  return applyUpdateChannel(autoUpdater, channel);
+}
+
+function initUpdater(win, channel = 'stable') {
+  setUpdateChannel(channel);
+
   // Updates only make sense for the installed (NSIS) build, not dev or portable.
   if (!app.isPackaged) return;
 
@@ -37,4 +44,4 @@ function install() {
   autoUpdater.quitAndInstall();
 }
 
-module.exports = { initUpdater, check, download, install };
+module.exports = { initUpdater, setUpdateChannel, check, download, install };
