@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.0-beta.1
+
+### Added
+
+- Detection now groups consecutive ad-sized candidates into complete commercial breaks while preserving the transitions between spots. The grouping gap is configurable and defaults to seven seconds.
+- Detected breaks begin as proposed edits. Check six seconds on both sides of the start and end, approve the break, and jump directly to the next proposal. Moving an approved boundary marks it for review again.
+- Cut-point CSV files now act as auditable edit decision lists, including source and output timing, classification, review state, boundary evidence, labels, and notes.
+- Finished exports are probed and fully decoded before they are published, catching damaged renders that an encoder exit code alone would miss.
+
+### Changed
+
+- The timeline now assigns every source frame to either a proposed commercial break or surrounding program material. Short black transitions inside a grouped break remain intact.
+- Existing saved commercial selections load as approved, so upgrading does not invalidate previous editing sessions.
+
+### Validation
+
+- 57 automated tests pass on Windows, including whole-break grouping, review metadata, EDL output mapping, full-render validation, theme integrity, export safety, and the 0.8.2 constant-time editing checks.
+
 ## 0.8.2
 
 ### Fixed
